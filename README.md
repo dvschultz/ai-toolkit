@@ -288,6 +288,54 @@ $env:AI_TOOLKIT_AUTH="super_secure_password"; npm run build_and_start
 ```
 
 
+## Supported Models
+
+The following models are supported for LoRA training (and in some cases full fine-tuning). Example configs are in `config/examples/`.
+
+### Image Models
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | `is_flux: true` | `train_lora_flux_24gb.yaml` | 24GB |
+| FLUX.1-schnell | `black-forest-labs/FLUX.1-schnell` | `is_flux: true` + `assistant_lora_path` | `train_lora_flux_schnell_24gb.yaml` | 24GB |
+| FLUX.1-Kontext-dev | `black-forest-labs/FLUX.1-Kontext-dev` | `arch: flux_kontext` | `train_lora_flux_kontext_24gb.yaml` | 24GB |
+| Flux.2 | `black-forest-labs/FLUX.2-dev` | `arch: flux2` | — | 24GB |
+| Flux.2-Klein-4B | — | `arch: flux2_klein_4b` | — | 24GB |
+| Flux.2-Klein-9B | — | `arch: flux2_klein_9b` | — | 24GB |
+| Flex.1-alpha | `ostris/Flex.1-alpha` | `is_flux: true` | `train_lora_flex_24gb.yaml` | 24GB |
+| Flex.2-preview | `ostris/Flex.2-preview` | `arch: flex2` | `train_lora_flex2_24gb.yaml` | 24GB |
+| Stable Diffusion 3.5 Large | `stabilityai/stable-diffusion-3.5-large` | `is_v3: true` | `train_lora_sd35_large_24gb.yaml` | 24GB |
+| Lumina Image 2.0 | `Alpha-VLLM/Lumina-Image-2.0` | `is_lumina2: true` | `train_lora_lumina.yaml` | 20GB |
+| Chroma | `lodestones/Chroma` | `arch: chroma` | `train_lora_chroma_24gb.yaml` | 24GB |
+| Chroma Radiance | — | `arch: chroma_radiance` | — | 24GB |
+| HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | `arch: hidream` | `train_lora_hidream_48.yaml` | 48GB |
+| HiDream-E1 | — | `arch: hidream_e1` | — | 48GB |
+| OmniGen2 | `OmniGen2/OmniGen2` | `arch: omnigen2` | `train_lora_omnigen2_24gb.yaml` | 24GB |
+| Qwen-Image | `Qwen/Qwen-Image` | `arch: qwen_image` | `train_lora_qwen_image_24gb.yaml` | 24GB |
+| Qwen-Image-Edit | `Qwen/Qwen-Image-Edit` | `arch: qwen_image_edit` | `train_lora_qwen_image_edit_32gb.yaml` | 32GB |
+| Qwen-Image-Edit-2509 | `Qwen/Qwen-Image-Edit-2509` | `arch: qwen_image_edit_plus` | `train_lora_qwen_image_edit_2509_32gb.yaml` | 32GB |
+| CogView4 | — | `arch: cogview4` | — | — |
+| F-Lite | — | `arch: f-lite` | — | — |
+| Z-Image | — | `arch: zimage` | — | — |
+| Stable Diffusion 1.5 | `runwayml/stable-diffusion-v1-5` | (default) | — | 8GB |
+| Stable Diffusion 2.x | — | `is_v2: true` | — | 8GB |
+| SDXL | — | `is_xl: true` | — | 12GB |
+
+### Video Models
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| Wan 2.1 T2V 1.3B | `Wan-AI/Wan2.1-T2V-1.3B-Diffusers` | `arch: wan21` | `train_lora_wan21_1b_24gb.yaml` | 24GB |
+| Wan 2.1 T2V 14B | `Wan-AI/Wan2.1-T2V-14B-Diffusers` | `arch: wan21` | `train_lora_wan21_14b_24gb.yaml` | 24GB |
+| Wan 2.1 I2V | — | `arch: wan21_i2v` | — | 24GB |
+| Wan 2.2 T2V 14B | `ai-toolkit/Wan2.2-T2V-A14B-Diffusers-bf16` | `arch: wan22_14b` | `train_lora_wan22_14b_24gb.yaml` | 24GB |
+| Wan 2.2 T2V 5B | — | `arch: wan22_5b` | — | 24GB |
+| Wan 2.2 I2V 14B | — | `arch: wan22_14b_i2v` | — | 24GB |
+| LTX Video 2 | — | `arch: ltx2` | — | — |
+
+Models without a listed HuggingFace path or example config may require manual setup or are still experimental. All models use `job: extension` with `type: "sd_trainer"` in the config.
+
+
 ## FLUX.1 Training
 
 ### Tutorial
