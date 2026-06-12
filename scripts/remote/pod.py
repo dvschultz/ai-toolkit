@@ -369,7 +369,18 @@ def _build_pod_env() -> dict:
         # there), so a pod stop/start never re-downloads weights and the
         # small container disk stays out of the picture.
         "HF_HOME": "/workspace/.hf_home",
-        "HF_HUB_ENABLE_HF_TRANSFER": "1",
+        # Large Flux.2-dev weights (a single 64GB flux2-dev.safetensors on
+        # HF's Xet backend) must download via hf_xet — the chunked,
+        # resumable, content-addressed Xet client (installed on the image as
+        # hf_xet 1.5.0). Two things to AVOID, both learned the hard way:
+        #  - hf_transfer (the fast Rust downloader) has NO resume and hangs
+        #    dead at a fixed byte offset when the connection drops on a file
+        #    this large -> set HF_HUB_ENABLE_HF_TRANSFER=0.
+        #  - the *regular* http_get downloader REFUSES files this large
+        #    ("file is too large ... install hf_xet") -> do NOT disable Xet.
+        # So: hf_transfer OFF, Xet ON (the default). Leave HF_HUB_DISABLE_XET
+        # unset so hf_xet handles the big-file transfer.
+        "HF_HUB_ENABLE_HF_TRANSFER": "0",
     }
     hf_token = os.environ.get("HF_TOKEN")
     if hf_token:

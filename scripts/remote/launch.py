@@ -155,7 +155,7 @@ def build_wrapper_script(m: RunManifest,
 # (a) Bridge HF env from PID 1's environment. The image's start.sh bridges
 # only its own provider vars and PATH into SSH sessions, so the trainer would
 # never see these otherwise. Export each var only if PID 1 actually has it.
-for _var in HF_TOKEN HF_HOME HF_HUB_ENABLE_HF_TRANSFER; do
+for _var in HF_TOKEN HF_HOME HF_HUB_ENABLE_HF_TRANSFER HF_HUB_DISABLE_XET; do
     _val=$(tr '\\0' '\\n' < /proc/1/environ | grep "^${{_var}}=" | head -n 1 | cut -d= -f2-)
     if [ -n "$_val" ]; then
         export "${{_var}}=${{_val}}"
