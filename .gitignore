@@ -43,6 +43,8 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+# fal LoRA upload URL cache — machine-specific, contains user-private fal CDN URLs
+scripts/fal/.fal_lora_cache.json
 nosetests.xml
 coverage.xml
 *.cover
