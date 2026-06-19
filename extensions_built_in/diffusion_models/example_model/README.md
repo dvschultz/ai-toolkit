@@ -90,6 +90,11 @@ train:
   (`get_loss_target`), i.e. the velocity pointing from data to noise.
 - `self.model` / `self.transformer` / `self.unet` are aliases for the same
   thing on BaseModel.
+- **`use_old_lokr_format = False`** — set this class attribute on every NEW
+  model. `BaseModel` defaults it to `True` purely for backwards-compatibility
+  with LoKr checkpoints trained before the format change; all new architectures
+  should use the new LoKr format. (Plain LoRA training is unaffected — this only
+  matters for `network.type: "lokr"`.)
 
 ## AdvancedPromptEmbeds
 
@@ -101,6 +106,17 @@ conditioning, preferred for all new models over the older `PromptEmbeds`:
   natural length and pad to the batch max only at the model call
   (`src/pipeline.py:pad_prompt_embeds`) — caches stay small and any prompts
   can share a batch.
+- **Keep each per-item tensor 2D `(L, D)`.** This is a hard requirement, not a
+  convention: `BaseModel.predict_noise` infers the text batch size from the
+  embed list, and it only counts the list as one-per-item when each tensor is
+  2D (`len(text_embeds[0].shape) == 2`). A 3D per-item tensor is read as an
+  already-batched `(B, L, D)` and its *first axis* is taken as the batch size —
+  so a single 3D prompt of length `L` looks like a batch of `L`, and training
+  dies with *"Batch size of latents must be the same or half the batch size of
+  text embeddings."* If your conditioning has an extra axis (e.g. a stack of N
+  encoder layers, giving `(L, N, D)`), **flatten it into the feature axis**
+  (`(L, N*D)`) in `get_prompt_embeds` and **restore it** (`reshape(B, Lt, N, D)`)
+  in `get_noise_prediction` / the pipeline, right before the model call.
 - Add as many keys as your model needs (`pooled_embeds`, image features, …).
 - Keys that must not be dtype-cast (token ids, masks) go in
   `embeds.frozen_dtype_keys`.
@@ -118,6 +134,66 @@ With `train.gradient_checkpointing: true`, `BaseSDTrainProcess` calls
 `torch.utils.checkpoint.checkpoint(..., use_reentrant=False)` when the flag is
 set **and** `torch.is_grad_enabled()` is true — never gate on `self.training`.
 See `src/model.py` for the full pattern and rationale.
+
+## Quantization
+
+With `quantize: true`, `quantize_model` swaps every `nn.Linear` for an
+`optimum.quanto` quantized one. Their matmul kernel **only accepts 2D or 3D
+activations** (`assert activations.ndim in (2, 3)`) — a `Linear` you feed a 4D
+tensor works fine in bf16 but throws once quantized. If your network applies a
+`Linear` over a 4D tensor (e.g. projecting a `(B, L, D, N)` layer axis),
+reshape to 3D for the call and back afterwards.
+
+Also watch out for **slow bf16 kernels on vendored components**: `Conv3d` has no
+fast cuDNN bf16 path (it falls back to a slow one). If a frozen sub-model carries
+a `Conv3d` you don't actually run — e.g. a vision tower's patch embed on a VL
+text encoder — drop it (`text_encoder.model.visual = None`) to skip loading it;
+if you must run one, consider running that component in fp16/fp32.
+
+## Attention backends (don't force flash-attn)
+
+Reference repos very often hard-code an attention kernel — `flash_attn`,
+xformers, sage — and import it at module top level. **Do not carry that
+requirement over.** ai-toolkit has to import and load your model on machines
+where that package isn't installed (CPU boxes, headless CI, plain installs), so
+a top-level `from flash_attn import ...` turns "load the model" into an
+`ImportError`.
+
+The rule:
+
+- **Default to torch's built-in `F.scaled_dot_product_attention`** (the
+  "native" backend). It needs no extra dependency, runs on CPU and CUDA, and
+  already dispatches to a fused/flash kernel on supported hardware. `src/model.py`
+  does exactly this.
+- **Make any other kernel OPTIONAL**, selected at runtime — never required at
+  import. The clean pattern:
+  1. Guard the import so a missing package is a flag, not a crash:
+     ```python
+     try:
+         from flash_attn import flash_attn_varlen_func
+         _FLASH_ATTN_AVAILABLE = True
+     except ImportError:
+         flash_attn_varlen_func = None
+         _FLASH_ATTN_AVAILABLE = False
+     ```
+  2. Give each attention module an `attention_backend` flag (default
+     `"native"`) and **branch inside its forward** — `"flash"` runs the flash
+     kernel, anything else runs SDPA.
+  3. Expose a `set_attention_backend("native"|"flash")` on the parent model
+     that validates the name, raises a clear error if `"flash"` is requested
+     while `_FLASH_ATTN_AVAILABLE` is `False`, and propagates the flag to every
+     attention module.
+  4. Wire it to a config knob so it stays opt-in, e.g.
+     `model_kwargs.attention_backend: "flash"` read in `load_model`.
+
+Branch on a per-module **flag**, don't swap the processor/module instance:
+attention modules that own trained q/k/v weights (joint/dual-stream blocks)
+would lose those weights if you replaced them with a different instance.
+
+Worked implementations to copy: `../ideogram4/src/transformer.py`
+(`set_attention_backend`, native+flash in one `Attention.forward`) and
+`../boogu_image/src/attention_processor.py` (guarded import, per-processor
+`attention_backend` flag, flash varlen branch alongside SDPA).
 
 ## Adapting this template
 

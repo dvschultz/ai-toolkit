@@ -56,6 +56,11 @@ class ExampleModel(BaseModel):
     #  - it is the default cache key for text-embedding / latent caches
     arch = "example"
 
+    # ALL NEW MODELS should set this to False. ``BaseModel`` defaults it to True
+    # only for backwards-compatibility with already-released LoKr checkpoints; the
+    # newer LoKr weight format is the correct one for any new architecture.
+    use_old_lokr_format = False
+
     def __init__(
         self,
         device,                  # "cuda:0" etc.
@@ -329,6 +334,15 @@ class ExampleModel(BaseModel):
              prompt, each at its natural (unpadded) length. Padding to the
              batch max is deferred to get_noise_prediction / the pipeline,
              which keeps caches small and lets any prompts share a batch.
+
+             Each per-prompt tensor MUST be 2D ``(L, D)`` -- BaseModel infers the
+             text batch size from the list and only treats it as one-per-prompt
+             when the tensors are 2D; a 3D per-prompt tensor is misread as an
+             already-batched ``(B, L, D)`` and training fails with a latents-vs-
+             text batch-size mismatch. If your conditioning has an extra axis
+             (e.g. N stacked encoder layers -> ``(L, N, D)``), flatten it here
+             (``(L, N*D)``) and restore it (``reshape(B, Lt, N, D)``) at the
+             model call.
 
              You can store any number of keys (pooled embeds, image features,
              ...). If a key must keep its dtype when everything else is cast
