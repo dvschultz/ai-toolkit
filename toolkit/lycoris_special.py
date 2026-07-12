@@ -13,7 +13,8 @@ from toolkit.network_mixins import ToolkitNetworkMixin, ToolkitModuleMixin, Extr
 # diffusers specific stuff
 LINEAR_MODULES = [
     'Linear',
-    'LoRACompatibleLinear'
+    'OstrisLinear',
+    'LoRACompatibleLinear',
 ]
 CONV_MODULES = [
     'Conv2d',
@@ -78,7 +79,12 @@ class LoConSpecialModule(ToolkitModuleMixin, LoConModule, ExtractableModuleMixin
             self.lora_up = nn.Linear(lora_dim, out_dim, bias=use_bias)
         else:
             raise NotImplementedError
-        self.shape = org_module.weight.shape
+        # avoid the weight property on quantized OstrisLinear: it dequantizes the
+        # whole weight just to answer .shape
+        if getattr(org_module, "is_ostris_quantized", False):
+            self.shape = torch.Size((org_module.out_features, org_module.in_features))
+        else:
+            self.shape = org_module.weight.shape
 
         if dropout:
             self.dropout = nn.Dropout(dropout)
