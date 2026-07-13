@@ -33,6 +33,7 @@ type AdditionalSections =
   | 'model.qie.match_target_res'
   | 'model.assistant_lora_path'
   | 'model.unconditional_lora_path'
+  | 'model.model_kwargs.kv_cache'
   | 'ideogram_4_prompt';
 
 type ModelGroup = 'image' | 'instruction' | 'video' | 'experimental' | 'audio';
@@ -621,7 +622,7 @@ export const modelArchs: ModelArch[] = [
         undefined,
       ],
       'config.process[0].sample.guidance_scale': [1, 4],
-      'config.process[0].sample.sample_steps': [8, 25],
+      'config.process[0].sample.sample_steps': [9, 25],
     },
     disableSections: ['network.conv'],
     additionalSections: ['model.low_vram', 'model.layer_offloading', 'model.assistant_lora_path'],
@@ -1077,7 +1078,7 @@ export const modelArchs: ModelArch[] = [
         undefined,
       ],
       'config.process[0].sample.guidance_scale': [1, 4],
-      'config.process[0].sample.sample_steps': [8, 25],
+      'config.process[0].sample.sample_steps': [9, 25],
     },
     disableSections: [
       'network.conv',
@@ -1085,7 +1086,82 @@ export const modelArchs: ModelArch[] = [
     additionalSections: [
       'model.low_vram',
       'model.layer_offloading',
-      'model.assistant_lora_path'
+      'model.assistant_lora_path',
+    ],
+  },
+  {
+    name: 'krea2:o_edit',
+    label: 'Krea 2 (raw) [Edit Training]',
+    group: 'experimental',
+    defaults: {
+      'config.process[0].model.name_or_path': ['krea/Krea-2-Raw', defaultNameOrPath],
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.quantize_te': [true, false],
+      'config.process[0].train.timestep_type': ['linear', 'sigmoid'],
+      'config.process[0].network.conv': [undefined, 16],
+      'config.process[0].network.conv_alpha': [undefined, 16],
+      'config.process[0].model.low_vram': [true, false],
+      'config.process[0].train.unload_text_encoder': [false, false],
+      'config.process[0].model.model_kwargs': [
+        {
+          edit: true,
+          match_target_res: true,
+          kv_cache: true,
+        },
+        {},
+      ],
+    },
+    disableSections: [
+      'network.conv', 'train.unload_text_encoder'
+    ],
+    additionalSections: [
+      'datasets.multi_control_paths',
+      'sample.multi_ctrl_imgs',
+      'model.low_vram',
+      'model.layer_offloading',
+      'model.qie.match_target_res',
+      'model.model_kwargs.kv_cache',
+    ],
+  },
+  {
+    name: 'krea2:o_edit_turbo',
+    label: 'Krea 2 Turbo (w/ Training Adapter) [Edit Training]',
+    group: 'experimental',
+    defaults: {
+      'config.process[0].model.name_or_path': ['krea/Krea-2-Turbo', defaultNameOrPath],
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.quantize_te': [true, false],
+      'config.process[0].train.timestep_type': ['linear', 'sigmoid'],
+      'config.process[0].network.conv': [undefined, 16],
+      'config.process[0].network.conv_alpha': [undefined, 16],
+      'config.process[0].model.low_vram': [true, false],
+      'config.process[0].model.assistant_lora_path': [
+        'ostris/krea2_turbo_training_adapter/krea2_turbo_training_adapter_v1.safetensors',
+        undefined,
+      ],
+      'config.process[0].sample.guidance_scale': [1, 4],
+      'config.process[0].sample.sample_steps': [8, 25],
+      'config.process[0].train.unload_text_encoder': [false, false],
+      'config.process[0].model.model_kwargs': [
+        {
+          edit: true,
+          match_target_res: true,
+          kv_cache: true,
+        },
+        {},
+      ],
+    },
+    disableSections: [
+      'network.conv', 'train.unload_text_encoder'
+    ],
+    additionalSections: [
+      'datasets.multi_control_paths',
+      'sample.multi_ctrl_imgs',
+      'model.low_vram',
+      'model.layer_offloading',
+      'model.assistant_lora_path',
+      'model.qie.match_target_res',
+      'model.model_kwargs.kv_cache',
     ],
   },
   {
@@ -1160,7 +1236,10 @@ export const groupedModelOptions: GroupedSelectOption[] = modelArchs.reduce((acc
 
 export const quantizationOptions: SelectOption[] = [
   { value: '', label: '- NONE -' },
-  { value: 'qfloat8', label: 'float8 (default)' },
+  { value: 'qfloat8', label: 'qfloat8 (default)' },
+  { value: 'float8', label: 'float8' },
+  { value: 'convrot8', label: '8bit convrot' },
+  { value: 'convrot4', label: '4bit convrot' },
   { value: 'uint7', label: '7 bit' },
   { value: 'uint6', label: '6 bit' },
   { value: 'uint5', label: '5 bit' },
