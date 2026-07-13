@@ -65,6 +65,28 @@ idle-bills. If you want the steps separately (e.g. to inspect the pod
 before launching), run `provision`, `sync`, then `launch` individually —
 same flags.
 
+### Output location — `--output-base` (avoid filling the local disk)
+
+Pulled artifacts (checkpoints + samples) land in `./output/<run>/` by
+default. A Flux.2 run is ~11GB (rank-64 checkpoints × every save), which can
+fill a laptop disk and make `down`'s final pull fail with
+`No space left on device` (the pod then STOPS, not terminates, until you
+free space and re-run `down`). To keep big pulls off the repo volume, pass a
+global `--output-base` (or set `$AITK_OUTPUT_BASE`) pointing at an external
+drive — it must come **before** the subcommand:
+
+```bash
+python scripts/remote/cli.py --output-base "/Volumes/Lexar/aitk-output" \
+    up config/examples/<config>.yaml --gpu H200 --gpu-fallback "H100 NVL"
+```
+
+Artifacts then write to `<output-base>/<run>/`. `runs/<run>/` (manifest +
+small mirrors) **always stays under the repo** so `attach`/re-entry and the
+monitor still work. Pass the **same `--output-base` on every command** for a
+run (`up`, `watch`, `pull`, `down`) — it's not persisted in the manifest, so
+an omitted flag on a later `down` would pull to `./output` instead. For
+Flux.2/large runs, prefer an external drive from the start.
+
 ### GPU choice — ASK, don't assume
 
 **Always ask the user which GPU to provision before launching. Do NOT

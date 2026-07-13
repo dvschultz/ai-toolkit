@@ -567,6 +567,14 @@ def build_parser() -> argparse.ArgumentParser:
                     "guide in scripts/remote/README.md")
     parser.add_argument("--base-dir", default=".",
                         help=argparse.SUPPRESS)  # test/fixture hook
+    parser.add_argument("--output-base", default=None, metavar="DIR",
+                        help="where to write pulled artifacts (checkpoints + "
+                             "samples), as <DIR>/<run>/. Default: repo "
+                             "./output/<run>. runs/<run> (manifest + mirrors) "
+                             "always stays under the repo so attach/re-entry "
+                             "work. Also settable via $AITK_OUTPUT_BASE. Point "
+                             "at an external drive to keep large (Flux.2) pulls "
+                             "from filling the local disk.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("preflight", help="validate config + dataset; write "
@@ -649,6 +657,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+    # --output-base relocates the heavy artifact pulls (contract.local_output_dir
+    # reads this env at call time). Set before any command runs.
+    if getattr(args, "output_base", None):
+        os.environ["AITK_OUTPUT_BASE"] = args.output_base
     load_env(args.base_dir)
     try:
         if args.command in _NEEDS_API:

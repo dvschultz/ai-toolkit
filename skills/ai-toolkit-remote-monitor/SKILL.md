@@ -61,7 +61,11 @@ The JSON carries: `state`, `step`, `total_steps`, `loss`, `oom_skips`,
 `cost_estimate`, `pulled_checkpoint_steps`, `detail`, `log_tail_path`.
 
 `watch --once` also **pulls** new samples/checkpoints into `output/<run>/`
-each cycle, so the artifacts are local by the time you see exit 10.
+each cycle, so the artifacts are local by the time you see exit 10. If the
+run was launched with `--output-base DIR` (or `$AITK_OUTPUT_BASE`), pass the
+**same** global `--output-base` here too (before the subcommand) so pulls go
+to `<DIR>/<run>/`; it isn't persisted in the manifest, so an omitted flag
+silently pulls to the repo's `./output` instead.
 
 **Cadence:** every ~10 min for an active run. First runs spend 20-60 min in
 `warming` (model download) before step 1 — that's `state: RUNNING`,

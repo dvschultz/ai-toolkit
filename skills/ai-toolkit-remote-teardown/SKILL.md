@@ -38,6 +38,15 @@ pod's volume for a `rescue`.
 - `down` on an already-terminated/gone pod succeeds quietly and still
   reports cost from the manifest.
 
+**Local disk full on the final pull.** A large run (Flux.2 ≈ 11GB of rank-64
+checkpoints) can exhaust the local disk mid-pull; `down` fails with
+`No space left on device` and STOPS the pod (artifacts safe). If the run was
+launched with `--output-base DIR` (artifacts → `<DIR>/<run>/`), pass the
+**same** `--output-base` to `down` — otherwise it pulls to the repo's
+`./output` and can refill a full disk. To recover a stopped pod after freeing
+space: re-run `down` (with the matching `--output-base`), or `rescue`. Don't
+`--force` just to escape a disk-full — that discards un-pulled checkpoints.
+
 Expected-checkpoint math accounts for early stops: a run stopped at step
 1500 of 5000 verifies against the checkpoints it actually produced, not the
 full-run count.
