@@ -40,6 +40,8 @@ The following models are supported for LoRA training (and in some cases full fin
 | SDXL | `stabilityai/stable-diffusion-xl-base-1.0` | `is_xl: true` | — | 12GB |
 | Stable Diffusion 1.5 | `stable-diffusion-v1-5/stable-diffusion-v1-5` | (default) | — | 8GB |
 | Stable Diffusion 2.x | — | `is_v2: true` | — | 8GB |
+| Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | — |
+| Anima | `circlestone-labs/Anima-Base-v1.0-Diffusers` | `arch: anima` | — | — |
 
 ### Instruction / Edit
 
