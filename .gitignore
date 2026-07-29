@@ -228,3 +228,6 @@ briefs/
 !/config/examples/train_lora_wan21_1b_24gb.yaml
 !/config/examples/train_lora_wan22_14b_24gb.yaml
 !/config/examples/train_slider.example.yml
+
+# Upstream local checkout marker
+original_repo
