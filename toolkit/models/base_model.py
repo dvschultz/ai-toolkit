@@ -196,6 +196,9 @@ class BaseModel:
         
         # if a mask is passed, do the loss with the mask. May be set false for models that use a mask for other reasons.
         self.do_masked_loss = True
+        
+        # if the model outputs an x0 prediction (clean latent)
+        self.x0_pred = False
 
     # properties for old arch for backwards compatibility
     @property
@@ -666,7 +669,7 @@ class BaseModel:
                         extra,
                     )
 
-                    gen_config.save_image(img, i)
+                    gen_config.save_image_atomic(img, i)
                     gen_config.log_image(img, i)
                     self._after_sample_image(i, len(image_configs))
                     flush()
