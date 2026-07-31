@@ -201,7 +201,7 @@ class NetworkConfig:
 
         self.transformer_only = kwargs.get('transformer_only', True)
         
-        self.lokr_full_rank = kwargs.get('lokr_full_rank', False)
+        self.lokr_full_rank = kwargs.get('lokr_full_rank', True)
         if self.lokr_full_rank and self.type.lower() == 'lokr':
             self.linear = 9999999999
             self.linear_alpha = 9999999999
@@ -711,11 +711,15 @@ class ModelConfig:
         if self.layer_offloading and self.qtype_te == "qfloat8":
             self.qtype_te = "float8"
             
-        # Mac mps only works with torachao uint
+        # MPS has no fp8 dtype, so qfloat8 has to become an 8 bit integer format.
+        # convrot8, not torchao int8: measured on an M3 against bf16, convrot8
+        # trains at 0.79x and holds 1.04 GB of resident weight where torchao int8
+        # trains at 0.52x and holds 1.21 GB, and convrot8 quantizes in 19ms
+        # against 2.8s. See scripts/test_quantizations.py --device mps.
         if torch.backends.mps.is_available() and self.qtype == "qfloat8":
-            self.qtype = "int8"
+            self.qtype = "convrot8"
         if torch.backends.mps.is_available() and self.qtype_te == "qfloat8":
-            self.qtype_te = "int8"
+            self.qtype_te = "convrot8"
         
         # 0 is off and 1.0 is 100% of the layers
         self.layer_offloading_transformer_percent = kwargs.get("layer_offloading_transformer_percent", 1.0)
@@ -1226,6 +1230,58 @@ class GenerateImageConfig:
         filename += '.txt'
         # join with folder
         return os.path.join(self.output_folder, filename)
+
+    def save_image_atomic(self, image, count: int = 0, max_count=0):
+        # write into a hidden tmp subfolder, then atomically move into place so
+        # watchers (UI/CDN) never see and cache a partially written file. Wraps
+        # self.save_image so it also covers models that replace that function.
+        real_folder = self.output_folder
+        tmp_folder = os.path.join(real_folder, '.tmp')
+        os.makedirs(tmp_folder, exist_ok=True)
+        self.output_folder = tmp_folder
+        try:
+            self.save_image(image, count, max_count)
+        finally:
+            self.output_folder = real_folder
+        files = os.listdir(tmp_folder)
+        # thumbs move into place first so they already exist when the media
+        # file appears in the samples folder
+        thumbs_folder = os.path.join(real_folder, '.thumbs')
+        for file in files:
+            tmp_thumb = os.path.join(tmp_folder, file + '.thumb')
+            try:
+                if self._generate_thumbnail(os.path.join(tmp_folder, file), tmp_thumb):
+                    os.makedirs(thumbs_folder, exist_ok=True)
+                    os.replace(tmp_thumb, os.path.join(thumbs_folder, file + '.jpg'))
+            except Exception as e:
+                print(f"Failed to generate thumbnail for {file}: {e}")
+        for file in files:
+            os.replace(os.path.join(tmp_folder, file), os.path.join(real_folder, file))
+
+    def _generate_thumbnail(self, media_path, thumb_path):
+        # 300x300 center-cropped 90% jpg. Returns True if one was written.
+        from PIL import Image as PILImage
+        ext = os.path.splitext(media_path)[1].lower()
+        img = None
+        if ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp']:
+            img = PILImage.open(media_path)  # animated formats open on the first frame
+        elif ext == '.mp4':
+            import cv2
+            cap = cv2.VideoCapture(media_path)
+            ok, frame = cap.read()
+            cap.release()
+            if ok:
+                img = PILImage.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        if img is None:
+            return False
+        img = img.convert('RGB')
+        w, h = img.size
+        side = min(w, h)
+        left = (w - side) // 2
+        top = (h - side) // 2
+        img = img.crop((left, top, left + side, top + side)).resize((300, 300), PILImage.LANCZOS)
+        img.save(thumb_path, format='JPEG', quality=90)
+        return True
 
     def save_image(self, image, count: int = 0, max_count=0):
         # make parent dirs
