@@ -794,6 +794,9 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 use_feedback=self.train_config.ema_config.use_feedback,
                 param_multiplier=self.train_config.ema_config.param_multiplier,
             )
+            # expose to the model: models that run an EMA-teacher forward during training
+            # (e.g. wan21_pixel self_flow) read it from here
+            self.sd.ema = self.ema
 
     def before_dataset_load(self):
         pass
@@ -1368,7 +1371,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 if self.train_config.random_noise_shift > 0.0:
                     # get random noise -1 to 1
                     noise_shift = torch.randn(
-                        batch_size, latents.shape[1], 1, 1,
+                        s,
                         device=noise.device,
                         dtype=noise.dtype
                     ) * self.train_config.random_noise_shift
