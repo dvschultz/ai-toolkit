@@ -126,6 +126,9 @@ celerybeat.pid
 .venv
 .python
 .node
+.ffmpeg
+.mingit
+.uv
 env/
 venv/
 ENV/
@@ -189,6 +192,7 @@ aitk_db.db-shm
 /notes.md
 /data
 .claude
+
 runs/
 
 # Model briefs are private like configs: artist intent, dream prompts,
@@ -228,3 +232,5 @@ briefs/
 !/config/examples/train_lora_wan21_1b_24gb.yaml
 !/config/examples/train_lora_wan22_14b_24gb.yaml
 !/config/examples/train_slider.example.yml
+original_repo
+
