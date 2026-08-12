@@ -19,6 +19,7 @@ from toolkit.accelerator import unwrap_model
 from optimum.quanto import freeze
 from toolkit.util.quantize import quantize, get_qtype, quantize_model
 from toolkit.memory_management import MemoryManager
+from toolkit.paths import MODELS_PATH
 from safetensors.torch import load_file
 from PIL import Image
 import huggingface_hub
@@ -254,16 +255,28 @@ class LTX2Model(BaseModel):
         if not os.path.exists(model_path) and model_path.endswith(".safetensors"):
             # download the model from the Hugging Face Hub if it is not a local path
             splits = model_path.split("/")
-            if len(splits) != 3:
+            if len(splits) < 3:
                 raise ValueError(
-                    f"Invalid model path: {model_path}. Must be in the format 'repo_id/repo/filename.safetensors' to download from the Hugging Face Hub."
+                    f"Invalid model path: {model_path}. Must be in the format 'repo_id/repo/filename.safetensors' or 'repo_id/repo/subfolder/filename.safetensors' to download from the Hugging Face Hub."
                 )
-            # download the model from the hub
-            model_path = huggingface_hub.hf_hub_download(
-                repo_id="/".join(splits[:2]),
-                filename=splits[2],
-                token=HF_TOKEN,
-            )
+            rel_path = "/".join(splits[2:])
+            # use the file from the models folder if it is already there
+            local_candidates = [
+                os.path.join(MODELS_PATH, rel_path),
+                os.path.join(MODELS_PATH, splits[-1]),
+            ]
+            for candidate in local_candidates:
+                if os.path.exists(candidate):
+                    model_path = candidate
+                    break
+            else:
+                # download the model from the hub into the models folder
+                model_path = huggingface_hub.hf_hub_download(
+                    repo_id="/".join(splits[:2]),
+                    filename=rel_path,
+                    token=HF_TOKEN,
+                    local_dir=MODELS_PATH,
+                )
 
         # if we have a safetensors file it is a mono checkpoint
         if os.path.exists(model_path) and model_path.endswith(".safetensors"):
@@ -852,6 +865,16 @@ class LTX2Model(BaseModel):
         batch: "DataLoaderBatchDTO" = None,
         **kwargs,
     ):
+        # a grad-enabled prediction is the primary (loss carrying) one unless
+        # the trainer declared a secondary slot on the batch (prior /
+        # guidance-unconditional / preservation passes). Trainers that make
+        # several grad predictions per step (e.g. turbo rollouts) get one
+        # primary per prediction, last writer wins.
+        is_primary_pred = (
+            torch.is_grad_enabled()
+            and batch is not None
+            and batch.audio_pred_slot is None
+        )
         with torch.no_grad():
             if self.model.device == torch.device("cpu"):
                 self.model.to(self.device_torch)
@@ -932,7 +955,17 @@ class LTX2Model(BaseModel):
                 patch_size_t=self.pipeline.transformer_temporal_patch_size,
             )
 
-            if batch.audio_latents is not None or batch.audio_tensor is not None:
+            # audio only trains for video batches from datasets that asked for
+            # it. Cached latents can carry audio after do_audio was turned off,
+            # and image (single frame) batches must never pick up a soundtrack.
+            do_audio = (
+                batch.dataset_config is not None
+                and batch.dataset_config.do_audio
+                and getattr(batch, "num_frames", 1) > 1
+            )
+            if do_audio and (
+                batch.audio_latents is not None or batch.audio_tensor is not None
+            ):
                 if batch.audio_latents is not None:
                     # we have audio latents cached
                     raw_audio_latents = batch.audio_latents.to(
@@ -945,8 +978,21 @@ class LTX2Model(BaseModel):
 
                 audio_num_frames = raw_audio_latents.shape[1]
                 # add the audio targets to the batch for loss calculation later
-                audio_noise = torch.randn_like(raw_audio_latents)
-                batch.audio_target = (audio_noise - raw_audio_latents).detach()
+                # the audio noise is drawn once per step and shared by every
+                # pass (prior, primary, cfg/guidance, preservation) so they all
+                # see the same soundtrack and the stored target keeps matching
+                if (
+                    batch.audio_noise is not None
+                    and batch.audio_noise.shape == raw_audio_latents.shape
+                ):
+                    audio_noise = batch.audio_noise.to(
+                        raw_audio_latents.device, dtype=raw_audio_latents.dtype
+                    )
+                else:
+                    audio_noise = torch.randn_like(raw_audio_latents)
+                    batch.audio_noise = audio_noise
+                if batch.audio_target is None:
+                    batch.audio_target = (audio_noise - raw_audio_latents).detach()
                 audio_latents = self.add_noise(
                     raw_audio_latents,
                     audio_noise,
@@ -1040,7 +1086,10 @@ class LTX2Model(BaseModel):
 
         # add audio latent to batch if we had audio
         if batch.audio_target is not None:
-            batch.audio_pred = noise_pred_audio
+            if is_primary_pred:
+                batch.audio_pred = noise_pred_audio
+            else:
+                batch.set_secondary_audio_pred(noise_pred_audio)
 
         unpacked_output = self.pipeline._unpack_latents(
             latents=noise_pred_video,
