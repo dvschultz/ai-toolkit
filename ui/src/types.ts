@@ -164,6 +164,8 @@ export interface TrainConfig {
   audio_loss_multiplier?: number;
   max_loss?: number | null;
   validation_config?: ValidationConfig;
+  do_guidance_loss?: boolean;
+  guidance_loss_target?: number;
 }
 
 export interface QuantizeKwargsConfig {
@@ -296,6 +298,7 @@ export interface CaptionProcessConfig {
     fixed_caption?: string;
     caption_extension?: string;
     thinking?: boolean;
+    batch_size?: number;
   }
 }
 

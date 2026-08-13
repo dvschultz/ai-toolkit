@@ -30,6 +30,10 @@ if TYPE_CHECKING:
 
 printed_messages = []
 
+# keep in sync with video_extensions in toolkit/data_loader.py (importing it
+# here would be circular)
+video_extensions = ['.mp4', '.avi', '.mov', '.webm', '.mkv', '.wmv', '.m4v', '.flv']
+
 
 def print_once(msg):
     global printed_messages
@@ -55,15 +59,29 @@ class FileItemDTO(
     def __init__(self, *args, **kwargs):
         self.path = kwargs.get("path", "")
         self.dataset_config: "DatasetConfig" = kwargs.get("dataset_config", None)
-        self.is_video = self.dataset_config.num_frames > 1 or self.dataset_config.auto_frame_count
+        # a video dataset can contain both videos and images. Images are
+        # treated as single-frame items and bucketed separately from videos
+        dataset_is_video = self.dataset_config.num_frames > 1 or self.dataset_config.auto_frame_count
+        self.is_video = dataset_is_video and os.path.splitext(self.path)[1].lower() in video_extensions
         self.is_audio_model = kwargs.get("is_audio_model", False)
         self.sample_rate = kwargs.get("sample_rate", 48000)
-        self.num_frames = self.dataset_config.num_frames
+        self.num_frames = self.dataset_config.num_frames if self.is_video else 1
         self.temporal_compression = kwargs.get("temporal_compression", 8)
+        # module-level function (picklable) for models whose valid frame
+        # counts are not temporal_compression * n + 1; None = default math
+        _sd = kwargs.get("sd", None)
+        self.frame_count_snapper = (
+            _sd.get_frame_count_snapper()
+            if _sd is not None and hasattr(_sd, "get_frame_count_snapper")
+            else None
+        )
         size_database = kwargs.get("size_database", {})
         dataset_root = kwargs.get("dataset_root", None)
         self.encode_control_in_text_embeddings = kwargs.get(
             "encode_control_in_text_embeddings", False
+        )
+        self.encode_first_frame_in_text_embeddings = kwargs.get(
+            "encode_first_frame_in_text_embeddings", False
         )
         self.te_padding_side = kwargs.get("te_padding_side", "right")
         self.latent_space_version = kwargs.get("latent_space_version", "sd1")
@@ -79,6 +97,7 @@ class FileItemDTO(
             raise Exception("Error: Could not get file signature for {self.path}")
 
         use_db_entry = False
+        db_entry = None
         if file_key in size_database:
             db_entry = size_database[file_key]
             if (
@@ -87,6 +106,8 @@ class FileItemDTO(
                 and db_entry[2] == file_signature
             ):
                 use_db_entry = True
+        video_total_frames = None
+        video_fps = None
         if self.is_audio_model:
             # get the length of the audio file in ms
             with av.open(self.path) as c:
@@ -96,24 +117,31 @@ class FileItemDTO(
                     s = c.streams.audio[0]
                     w = int(float(s.duration * s.time_base) * 1_000)
             h = 1
-        elif use_db_entry:
-            w, h, _ = size_database[file_key]
         elif self.is_video:
-            # Open the video file
-            video = cv2.VideoCapture(self.path)
+            # video entries also carry (total_frames, fps); older 3-item entries
+            # get re-read and upgraded here
+            if use_db_entry and len(db_entry) >= 5:
+                w, h, _, video_total_frames, video_fps = db_entry[:5]
+            else:
+                # Open the video file
+                video = cv2.VideoCapture(self.path)
 
-            # Check if video opened successfully
-            if not video.isOpened():
-                raise Exception(f"Error: Could not open video file {self.path}")
+                # Check if video opened successfully
+                if not video.isOpened():
+                    raise Exception(f"Error: Could not open video file {self.path}")
 
-            # Get width and height
-            width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            w, h = width, height
+                # Get width and height
+                width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                w, h = width, height
+                video_total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+                video_fps = video.get(cv2.CAP_PROP_FPS)
 
-            # Release the video capture object immediately
-            video.release()
-            size_database[file_key] = (width, height, file_signature)
+                # Release the video capture object immediately
+                video.release()
+                size_database[file_key] = (width, height, file_signature, video_total_frames, video_fps)
+        elif use_db_entry:
+            w, h, _ = db_entry[:3]
         else:
             if self.dataset_config.fast_image_size:
                 # original method is significantly faster, but some images are read sideways. Not sure why. Do slow method by default.
@@ -132,6 +160,10 @@ class FileItemDTO(
             size_database[file_key] = (w, h, file_signature)
         self.width: int = w
         self.height: int = h
+        if self.is_video and self.dataset_config.auto_frame_count:
+            # compute the real frame count now (same math as load time) so buckets
+            # are keyed on the frame count this video will actually train at
+            self.num_frames = self.get_auto_frame_count(video_total_frames, video_fps)
         self.dataloader_transforms = kwargs.get("dataloader_transforms", None)
         super().__init__(*args, **kwargs)
 
@@ -210,10 +242,33 @@ class DataLoaderBatchDTO:
             # just for holding noise and preds during training
             self.audio_target: Union[torch.Tensor, None] = None
             self.audio_pred: Union[torch.Tensor, None] = None
-            
+            # the noise drawn for the audio stream on the primary (grad enabled)
+            # prediction. Secondary passes (cfg / guidance loss / prior preds)
+            # reuse it so their noisy audio matches the stored audio_target.
+            self.audio_noise: Union[torch.Tensor, None] = None
+            # audio predictions from the non primary passes. Kept separate so
+            # they cannot stomp the primary pred we backprop through.
+            self.audio_pred_uncond: Union[torch.Tensor, None] = None
+            self.audio_pred_prior: Union[torch.Tensor, None] = None
+            self.audio_pred_preservation: Union[torch.Tensor, None] = None
+            # which of the above the current secondary pass writes to. None (the
+            # default) means no secondary pass is in flight: any grad-enabled
+            # prediction is a primary one and writes audio_pred (and the
+            # noisy/sigma bookkeeping) directly. The trainer sets this around
+            # its prior / guidance-unconditional / preservation passes.
+            self.audio_pred_slot: Union[str, None] = None
+            # noisy audio rows and audio sigma of the primary pass, used to
+            # rebuild the clean audio estimate for perceptual losses
+            self.audio_noisy: Union[torch.Tensor, None] = None
+            self.audio_sigma: Union[torch.Tensor, None] = None
+
             self.num_frames: int = self.file_items[0].num_frames
 
-            if not is_latents_cached or self.file_items[0].dataset_config.load_image_when_caching_latents:
+            if (
+                not is_latents_cached
+                or self.file_items[0].dataset_config.load_image_when_caching_latents
+                or self.file_items[0].dataset_config.cache_tensors_to_disk
+            ):
                 # only return a tensor if latents are not cached, or if we are explicitly
                 # loading the raw image alongside the cached latents
                 self.tensor: torch.Tensor = torch.cat(
@@ -229,29 +284,39 @@ class DataLoaderBatchDTO:
                 if any(
                     [x._cached_first_frame_latent is not None for x in self.file_items]
                 ):
+                    # find one to use as a base; item 0 may not have one
+                    base_first_frame_latent = None
+                    for x in self.file_items:
+                        if x._cached_first_frame_latent is not None:
+                            base_first_frame_latent = x._cached_first_frame_latent
+                            break
                     self.first_frame_latents = torch.cat(
                         [
                             x._cached_first_frame_latent.unsqueeze(0)
                             if x._cached_first_frame_latent is not None
-                            else torch.zeros_like(
-                                self.file_items[0]._cached_first_frame_latent
-                            ).unsqueeze(0)
+                            else torch.zeros_like(base_first_frame_latent).unsqueeze(0)
                             for x in self.file_items
                         ]
                     )
                 if any([x._cached_audio_latent is not None for x in self.file_items]):
+                    # find one to use as a base; item 0 may not have one
+                    base_audio_latent = None
+                    for x in self.file_items:
+                        if x._cached_audio_latent is not None:
+                            base_audio_latent = x._cached_audio_latent
+                            break
                     self.audio_latents = torch.cat(
                         [
                             x._cached_audio_latent.unsqueeze(0)
                             if x._cached_audio_latent is not None
-                            else torch.zeros_like(
-                                self.file_items[0]._cached_audio_latent
-                            ).unsqueeze(0)
+                            else torch.zeros_like(base_audio_latent).unsqueeze(0)
                             for x in self.file_items
                         ]
                     )
 
             self.prompt_embeds: Union[PromptEmbeds, None] = None
+            # diff output preservation embeds (trigger word replaced with class)
+            self.dop_prompt_embeds: Union[PromptEmbeds, None] = None
             # if self.file_items[0].control_tensor is not None:
             # if any have a control tensor, we concatenate them
             if any([x.control_tensor is not None for x in self.file_items]):
@@ -419,8 +484,30 @@ class DataLoaderBatchDTO:
                             y.text_embeds = [y.text_embeds]
                     prompt_embeds_list.append(y)
                 padding_side = self.file_items[0].te_padding_side
-                
+
                 self.prompt_embeds = concat_prompt_embeds(prompt_embeds_list, padding_side=padding_side)
+
+            if any([x.dop_prompt_embeds is not None for x in self.file_items]):
+                # find one to use as a base
+                base_dop_prompt_embeds = None
+                for x in self.file_items:
+                    if x.dop_prompt_embeds is not None:
+                        base_dop_prompt_embeds = x.dop_prompt_embeds
+                        break
+                dop_prompt_embeds_list = []
+                for x in self.file_items:
+                    if x.dop_prompt_embeds is None:
+                        y = base_dop_prompt_embeds
+                    else:
+                        y = x.dop_prompt_embeds
+                    if x.text_embedding_space_version == "zimage":
+                        # z image needs to be a list if it is not already
+                        if not isinstance(y.text_embeds, list):
+                            y.text_embeds = [y.text_embeds]
+                    dop_prompt_embeds_list.append(y)
+                padding_side = self.file_items[0].te_padding_side
+
+                self.dop_prompt_embeds = concat_prompt_embeds(dop_prompt_embeds_list, padding_side=padding_side)
 
             if any([x.audio_tensor is not None for x in self.file_items]):
                 # find one to use as a base
@@ -457,6 +544,15 @@ class DataLoaderBatchDTO:
     ):
         return [x.caption_short for x in self.file_items]
 
+    def set_secondary_audio_pred(self, pred):
+        """Route an audio prediction from a non primary pass (prior,
+        unconditional/guidance, preservation) to its own slot so it cannot
+        stomp the primary prediction the loss backprops through. Passes that
+        did not declare a slot (e.g. a trainer's extra no_grad prediction)
+        are simply not stored."""
+        if self.audio_pred_slot is not None:
+            setattr(self, self.audio_pred_slot, pred)
+
     def cleanup(self):
         del self.latents
         del self.tensor
@@ -465,6 +561,12 @@ class DataLoaderBatchDTO:
         del self.audio_data
         del self.audio_target
         del self.audio_pred
+        del self.audio_noise
+        del self.audio_pred_uncond
+        del self.audio_pred_prior
+        del self.audio_pred_preservation
+        del self.audio_noisy
+        del self.audio_sigma
         del self.first_frame_latents
         del self.audio_latents
         for file_item in self.file_items:
