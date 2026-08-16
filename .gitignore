@@ -126,6 +126,9 @@ celerybeat.pid
 .venv
 .python
 .node
+.ffmpeg
+.mingit
+.uv
 env/
 venv/
 ENV/
@@ -224,7 +227,12 @@ briefs/
 !/config/examples/train_lora_qwen_image_edit_2509_32gb.yaml
 !/config/examples/train_lora_qwen_image_edit_32gb.yaml
 !/config/examples/train_lora_sd35_large_24gb.yaml
+!/config/examples/train_lora_sd35_large_32gb.yaml
 !/config/examples/train_lora_wan21_14b_24gb.yaml
 !/config/examples/train_lora_wan21_1b_24gb.yaml
 !/config/examples/train_lora_wan22_14b_24gb.yaml
 !/config/examples/train_slider.example.yml
+
+# Upstream local/generated paths
+original_repo
+.next
