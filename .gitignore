@@ -192,7 +192,6 @@ aitk_db.db-shm
 /notes.md
 /data
 .claude
-
 runs/
 
 # Model briefs are private like configs: artist intent, dream prompts,
