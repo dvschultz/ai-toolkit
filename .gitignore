@@ -126,6 +126,9 @@ celerybeat.pid
 .venv
 .python
 .node
+.ffmpeg
+.mingit
+.uv
 env/
 venv/
 ENV/
@@ -228,3 +231,8 @@ briefs/
 !/config/examples/train_lora_wan21_1b_24gb.yaml
 !/config/examples/train_lora_wan22_14b_24gb.yaml
 !/config/examples/train_slider.example.yml
+
+# Upstream local/generated paths
+original_repo
+.next
+testing/.model_test_outputs
