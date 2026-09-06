@@ -45,6 +45,15 @@ class CaptionConfig:
             "caption_prompt", "Describe this image in detail."
         )
         self.compile = kwargs.get("compile", False)
+        # batched captioners: files generated per model.generate call, and CPU
+        # preprocessing threads that keep the GPU fed. Default 1 for VRAM
+        # safety; raise it to saturate a large GPU.
+        self.batch_size = kwargs.get("batch_size", 1)
+        self.num_workers = kwargs.get("num_workers", 3)
+        # stream weights from CPU per layer instead of keeping them resident
+        # (low-vram machines); percent is the fraction of linears offloaded
+        self.layer_offloading = kwargs.get("layer_offloading", False)
+        self.layer_offloading_percent = kwargs.get("layer_offloading_percent", 1.0)
 
 
 class BaseCaptioner(BaseExtensionProcess):
@@ -158,7 +167,8 @@ class BaseCaptioner(BaseExtensionProcess):
     def find_files(self):
         # recursivly find all the files in the path_to_caption with the specified extensions and save the paths to self.file_paths
         for root, dirs, files in os.walk(self.caption_config.path_to_caption):
-            dirs[:] = [d for d in dirs if d != "_controls"]
+            # skip _controls and hidden dirs (.thumbs, .tmp)
+            dirs[:] = [d for d in dirs if d != "_controls" and not d.startswith(".")]
             for file in files:
                 if any(
                     file.lower().endswith(f".{ext}") and not file.startswith(".")
@@ -274,26 +284,21 @@ class BaseCaptioner(BaseExtensionProcess):
         while True:
             try:
                 if self.should_stop():
-                    # Mark and update status (non-blocking; uses existing infra)
-                    self.is_stopping = True
-                    self._run_async_operation(
-                        self._update_status("stopped", "Job stopped (remote)")
-                    )
-                    # Best-effort flush pending async ops
-                    try:
-                        asyncio.run(self.wait_for_all_async())
-                    except RuntimeError:
-                        pass
-                    # Try to stop DB thread pool quickly
-                    try:
-                        self.thread_pool.shutdown(wait=False, cancel_futures=True)
-                    except TypeError:
-                        self.thread_pool.shutdown(wait=False)
+                    if self.is_stopping:
+                        # maybe_stop() already started the graceful shutdown;
+                        # a second interrupt would only break its cleanup.
+                        return
                     print("")
                     print("****************************************************")
                     print("    Stop signal received; terminating process.      ")
                     print("****************************************************")
-                    os.kill(os.getpid(), signal.SIGINT)
+                    # Deliver a real KeyboardInterrupt to the main thread so
+                    # on_error runs the normal shutdown (final DB write, last
+                    # log). os.kill(pid, SIGINT) must not be used here: on
+                    # Windows it is TerminateProcess and kills us instantly.
+                    # Leave the thread pool alone -- on_error still needs it.
+                    signal.raise_signal(signal.SIGINT)
+                    return
                 time.sleep(interval_sec)
             except Exception:
                 time.sleep(interval_sec)
@@ -455,7 +460,11 @@ class BaseCaptioner(BaseExtensionProcess):
         super(BaseCaptioner, self).on_error(e)
         if self.is_ui_captioner:
             try:
-                if not self.is_stopping:
+                if isinstance(e, KeyboardInterrupt):
+                    # SIGINT (UI stop button or ctrl+c) is a stop, not an error
+                    self.is_stopping = True
+                    self.update_status("stopped", "Job stopped")
+                elif not self.is_stopping:
                     self.update_status("error", str(e))
                 asyncio.run(self.wait_for_all_async())
             except Exception as db_err:

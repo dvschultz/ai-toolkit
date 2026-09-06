@@ -126,6 +126,9 @@ celerybeat.pid
 .venv
 .python
 .node
+.ffmpeg
+.mingit
+.uv
 env/
 venv/
 ENV/
@@ -207,7 +210,6 @@ briefs/
 !/config/examples/extract.example.yml
 !/config/examples/generate.example.yaml
 !/config/examples/mod_lora_scale.yaml
-!/config/examples/remote_smoke_test.yaml
 !/config/examples/train_flex_redux.yaml
 !/config/examples/train_full_fine_tune_flex.yaml
 !/config/examples/train_full_fine_tune_lumina.yaml
@@ -228,3 +230,7 @@ briefs/
 !/config/examples/train_lora_wan21_1b_24gb.yaml
 !/config/examples/train_lora_wan22_14b_24gb.yaml
 !/config/examples/train_slider.example.yml
+
+original_repo
+.next
+testing/.model_test_outputs

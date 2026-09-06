@@ -201,7 +201,7 @@ class NetworkConfig:
 
         self.transformer_only = kwargs.get('transformer_only', True)
         
-        self.lokr_full_rank = kwargs.get('lokr_full_rank', False)
+        self.lokr_full_rank = kwargs.get('lokr_full_rank', True)
         if self.lokr_full_rank and self.type.lower() == 'lokr':
             self.linear = 9999999999
             self.linear_alpha = 9999999999
@@ -433,7 +433,6 @@ class TrainConfig:
         self.random_noise_shift = kwargs.get('random_noise_shift', 0.0)
         self.img_multiplier = kwargs.get('img_multiplier', 1.0)
         self.noisy_latent_multiplier = kwargs.get('noisy_latent_multiplier', 1.0)
-        self.latent_multiplier = kwargs.get('latent_multiplier', 1.0)
         self.negative_prompt = kwargs.get('negative_prompt', None)
         self.max_negative_prompts = kwargs.get('max_negative_prompts', 1)
         # multiplier applied to loos on regularization images
@@ -502,7 +501,6 @@ class TrainConfig:
 
         # standardize inputs to the meand std of the model knowledge
         self.standardize_images = kwargs.get('standardize_images', False)
-        self.standardize_latents = kwargs.get('standardize_latents', False)
 
         # if self.train_turbo and not self.noise_scheduler.startswith("euler"):
         #     raise ValueError(f"train_turbo is only supported with euler and wuler_a noise schedulers")
@@ -590,6 +588,11 @@ class TrainConfig:
         self.do_guidance_loss = kwargs.get('do_guidance_loss', False)
         self.guidance_loss_target: Union[int, List[int, int]] = kwargs.get('guidance_loss_target', 3.0)
         self.do_guidance_loss_cfg_zero: bool = kwargs.get('do_guidance_loss_cfg_zero', False)
+        # 'constant' uses guidance_loss_target as is. 'sigma' decays the target
+        # toward 1.0 as sigma falls (effective = 1 + (target - 1) * sigma) so the
+        # extrapolation never amplifies the unpredictable fresh-noise term at low
+        # sigma. Needed for guidance-distilled models with no guidance embedding.
+        self.guidance_loss_schedule: str = kwargs.get('guidance_loss_schedule', 'constant')
         self.unconditional_prompt: str = kwargs.get('unconditional_prompt', '')
         if isinstance(self.guidance_loss_target, tuple):
             self.guidance_loss_target = list(self.guidance_loss_target)
@@ -711,11 +714,15 @@ class ModelConfig:
         if self.layer_offloading and self.qtype_te == "qfloat8":
             self.qtype_te = "float8"
             
-        # Mac mps only works with torachao uint
+        # MPS has no fp8 dtype, so qfloat8 has to become an 8 bit integer format.
+        # convrot8, not torchao int8: measured on an M3 against bf16, convrot8
+        # trains at 0.79x and holds 1.04 GB of resident weight where torchao int8
+        # trains at 0.52x and holds 1.21 GB, and convrot8 quantizes in 19ms
+        # against 2.8s. See scripts/test_quantizations.py --device mps.
         if torch.backends.mps.is_available() and self.qtype == "qfloat8":
-            self.qtype = "int8"
+            self.qtype = "convrot8"
         if torch.backends.mps.is_available() and self.qtype_te == "qfloat8":
-            self.qtype_te = "int8"
+            self.qtype_te = "convrot8"
         
         # 0 is off and 1.0 is 100% of the layers
         self.layer_offloading_transformer_percent = kwargs.get("layer_offloading_transformer_percent", 1.0)
@@ -906,6 +913,7 @@ class DatasetConfig:
     """
 
     def __init__(self, **kwargs):
+        self.batch_size: Union[int, None] = kwargs.get('batch_size', None)
         self.type = kwargs.get('type', 'image')  # sd, slider, reference
         # will be legacy
         self.folder_path: str = kwargs.get('folder_path', None)
@@ -915,6 +923,10 @@ class DatasetConfig:
         self.default_caption: str = kwargs.get('default_caption', None)
         # trigger word for just this dataset
         self.trigger_word: str = kwargs.get('trigger_word', None)
+        # set automatically from the train config when diff output preservation is enabled.
+        # the dataset trigger word is replaced with the class in the caption for DOP embeddings
+        self.diff_output_preservation: bool = kwargs.get('diff_output_preservation', False)
+        self.diff_output_preservation_class: str = kwargs.get('diff_output_preservation_class', '')
         random_triggers = kwargs.get('random_triggers', [])
         # if they are a string, load them from a file
         if isinstance(random_triggers, str) and os.path.exists(random_triggers):
@@ -990,6 +1002,9 @@ class DatasetConfig:
         self.cache_latents: bool = kwargs.get('cache_latents', False)
         # cache latents to disk will store them on disk. If both are true, it will save to disk, but keep in memory
         self.cache_latents_to_disk: bool = kwargs.get('cache_latents_to_disk', False)
+        # cache tensors to disk. Useful for saving video files tensors to the disk so we have the clean pixelspace versions of video and audio
+        self.cache_tensors_to_disk: bool = kwargs.get('cache_tensors_to_disk', False)
+        
         self.cache_clip_vision_to_disk: bool = kwargs.get('cache_clip_vision_to_disk', False)
         self.cache_text_embeddings: bool = kwargs.get('cache_text_embeddings', False)
         self.load_image_when_caching_latents: bool = kwargs.get('load_image_when_caching_latents', False)
@@ -1026,6 +1041,14 @@ class DatasetConfig:
 
         self.num_workers: int = kwargs.get('num_workers', 2)
         self.prefetch_factor: int = kwargs.get('prefetch_factor', 2)
+        # Pin DataLoader output tensors in page-locked RAM for faster CPU->GPU
+        # transfer. Off by default because page-locked RAM cannot be relocated
+        # by NVIDIA's Windows driver shared-memory VRAM-overflow fallback,
+        # which can cause severe PCIe thrashing for users at the VRAM ceiling.
+        # Opt in if you have stable VRAM headroom and want the transfer speedup.
+        self.pin_memory: bool = kwargs.get('pin_memory', False)
+        # threads used to prep (decode/resize) items ahead of the VAE while caching latents
+        self.cache_latents_num_workers: int = kwargs.get('cache_latents_num_workers', min(6, os.cpu_count() or 1))
         self.extra_values: List[float] = kwargs.get('extra_values', [])
         self.square_crop: bool = kwargs.get('square_crop', False)
         # apply same augmentations to control images. Usually want this true unless special case
@@ -1049,6 +1072,11 @@ class DatasetConfig:
         # this wont work with bucketing for now until I can handle this before bucketing.
         self.auto_frame_count: bool = kwargs.get('auto_frame_count', False)
         
+        #  old behavior shrank the video to fit the temporal spacing of the model. Which fits the whole video, but
+        # can lead to fast motion/chipmunking. This will prevent the video from shrinking to fit, and instead, trim
+        # the tail of the video. Usually only a few frames. 
+        self.trim_auto_frame_count_tail: bool = kwargs.get('trim_auto_frame_count_tail', True)
+        
         # debug the frame count and frame selection. You dont need this. It is for debugging.
         self.debug: bool = kwargs.get('debug', False)
         
@@ -1062,7 +1090,7 @@ class DatasetConfig:
         # if true, will use a fask method to get image sizes. This can result in errors. Do not use unless you know what you are doing
         self.fast_image_size: bool = kwargs.get('fast_image_size', False)
         
-        self.do_i2v: bool = kwargs.get('do_i2v', True)  # do image to video on models that are both t2i and i2v capable
+        self.do_i2v: bool = kwargs.get('do_i2v', False)  # do image to video on models that are both t2i and i2v capable
         self.do_audio: bool = kwargs.get('do_audio', False) # load audio from video files for models that support it
         self.audio_preserve_pitch: bool = kwargs.get('audio_preserve_pitch', False) # preserve pitch when stretching audio to fit num_frames
         self.audio_normalize: bool = kwargs.get('audio_normalize', False) # normalize audio volume levels when loading
@@ -1226,6 +1254,58 @@ class GenerateImageConfig:
         filename += '.txt'
         # join with folder
         return os.path.join(self.output_folder, filename)
+
+    def save_image_atomic(self, image, count: int = 0, max_count=0):
+        # write into a hidden tmp subfolder, then atomically move into place so
+        # watchers (UI/CDN) never see and cache a partially written file. Wraps
+        # self.save_image so it also covers models that replace that function.
+        real_folder = self.output_folder
+        tmp_folder = os.path.join(real_folder, '.tmp')
+        os.makedirs(tmp_folder, exist_ok=True)
+        self.output_folder = tmp_folder
+        try:
+            self.save_image(image, count, max_count)
+        finally:
+            self.output_folder = real_folder
+        files = os.listdir(tmp_folder)
+        # thumbs move into place first so they already exist when the media
+        # file appears in the samples folder
+        thumbs_folder = os.path.join(real_folder, '.thumbs')
+        for file in files:
+            tmp_thumb = os.path.join(tmp_folder, file + '.thumb')
+            try:
+                if self._generate_thumbnail(os.path.join(tmp_folder, file), tmp_thumb):
+                    os.makedirs(thumbs_folder, exist_ok=True)
+                    os.replace(tmp_thumb, os.path.join(thumbs_folder, file + '.jpg'))
+            except Exception as e:
+                print(f"Failed to generate thumbnail for {file}: {e}")
+        for file in files:
+            os.replace(os.path.join(tmp_folder, file), os.path.join(real_folder, file))
+
+    def _generate_thumbnail(self, media_path, thumb_path):
+        # 300x300 center-cropped 90% jpg. Returns True if one was written.
+        from PIL import Image as PILImage
+        ext = os.path.splitext(media_path)[1].lower()
+        img = None
+        if ext in ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp']:
+            img = PILImage.open(media_path)  # animated formats open on the first frame
+        elif ext == '.mp4':
+            import cv2
+            cap = cv2.VideoCapture(media_path)
+            ok, frame = cap.read()
+            cap.release()
+            if ok:
+                img = PILImage.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        if img is None:
+            return False
+        img = img.convert('RGB')
+        w, h = img.size
+        side = min(w, h)
+        left = (w - side) // 2
+        top = (h - side) // 2
+        img = img.crop((left, top, left + side, top + side)).resize((300, 300), PILImage.LANCZOS)
+        img.save(thumb_path, format='JPEG', quality=90)
+        return True
 
     def save_image(self, image, count: int = 0, max_count=0):
         # make parent dirs
@@ -1418,11 +1498,6 @@ def validate_configs(
     # see if any datasets are caching text embeddings
     is_caching_text_embeddings = any(dataset.cache_text_embeddings for dataset in dataset_configs)
     if is_caching_text_embeddings:
-        
-        # check if they are doing differential output preservation
-        if train_config.diff_output_preservation:
-            raise ValueError("Cannot use differential output preservation with caching text embeddings. Please set diff_output_preservation to False.")
-    
         # make sure they are all cached
         for dataset in dataset_configs:
             if not dataset.cache_text_embeddings:
@@ -1435,6 +1510,3 @@ def validate_configs(
     
     if train_config.diff_output_preservation and train_config.blank_prompt_preservation:
         raise ValueError("Cannot use both differential output preservation and blank prompt preservation at the same time. Please set one of them to False.")
-    
-    if train_config.batch_size > 1 and any(dataset_config.auto_frame_count for dataset_config in dataset_configs):
-        raise ValueError("Cannot use batch size greater than 1 with auto_frame_count. Please set batch_size to 1 or auto_frame_count to False.")
