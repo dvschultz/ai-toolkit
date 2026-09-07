@@ -42,6 +42,10 @@ The following models are supported for LoRA training (and in some cases full fin
 | Stable Diffusion 2.x | — | `is_v2: true` | — | 8GB |
 | Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | — |
 | Anima | `circlestone-labs/Anima-Base-v1.0-Diffusers` | `arch: anima` | — | — |
+| Z-Image L2P | `zhen-nan/L2P` | `arch: zimage_l2p` | — | — |
+| Krea 2 Turbo | `krea/Krea-2-Turbo` | `arch: krea2` | — | 24GB |
+| Ideogram 4 FP8 | `ideogram-ai/ideogram-4-fp8` | `arch: ideogram4` | — | — |
+| Mage-Flow | `microsoft/Mage-Flow-Base` | `arch: mageflow` | — | — |
 
 ### Instruction / Edit
 
@@ -54,6 +58,9 @@ The following models are supported for LoRA training (and in some cases full fin
 | HiDream-E1-1 | `HiDream-ai/HiDream-E1-1` | `arch: hidream_e1` | — | 48GB |
 | Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | 24GB |
 | Boogu Image Edit | `Boogu/Boogu-Image-0.1-Edit` | `arch: boogu_image_edit` | — | 24GB |
+| Krea 2 (edit training) | `krea/Krea-2-Raw` | `arch: krea2` | — | 24GB |
+| Krea 2 Turbo (edit training) | `krea/Krea-2-Turbo` | `arch: krea2` | — | 24GB |
+| Mage-Flow Edit | `microsoft/Mage-Flow-Edit-Base` | `arch: mageflow_edit` | — | — |
 
 ### Video
 
@@ -68,6 +75,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Wan 2.2 TI2V 5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | `arch: wan22_5b` | — | 24GB |
 | LTX-2 | `Lightricks/LTX-2` | `arch: ltx2` | — | — |
 | LTX-2.3 | `Lightricks/LTX-2.3` | `arch: ltx2` | — | — |
+| MiniMax-H3 | `MiniMaxAI/MiniMax-H3` | `arch: minimax_h3` (also `minimax_h3_ref2va`, `minimax_h3_vsa`) | — | — |
 
 ### Audio
 
@@ -81,9 +89,59 @@ The following models are supported for LoRA training (and in some cases full fin
 | Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
 |---|---|---|---|---|
 | Zeta Chroma | `lodestones/Zeta-Chroma` | `arch: zeta_chroma` | — | — |
-| Ideogram 4 FP8 | `ideogram-ai/ideogram-4-fp8` | `arch: ideogram4` | — | — |
 
 ## Installation
+
+### Install with the AI Toolkit Manager (experimental)
+
+The recommended way to install and run AI Toolkit is with the **AI Toolkit
+Manager**, built into this repo. The manager detects your hardware and sets up
+the right PyTorch build, creates the python environment, and grabs local copies
+of Node.js and FFmpeg — everything stays inside the ai-toolkit folder, nothing
+is installed system-wide. On every launch the manager checks for updates and
+applies them (your local changes are never overwritten — if you have modified
+files, the update is skipped with a warning), then starts the UI at
+`http://localhost:8675`.
+
+The manager is still **experimental** — please let me know if you have any
+issues with it. The manual instructions below still work if you prefer them
+or run into problems.
+
+The only requirement is **git** (on Windows the manager can even fetch a
+portable git for updates, but you need one installed to clone the repo first).
+
+```bash
+git clone https://github.com/ostris/ai-toolkit.git
+cd ai-toolkit
+```
+
+Then start the manager with the script for your platform:
+
+Linux:
+```bash
+chmod +x run_linux.sh
+./run_linux.sh
+```
+
+MacOS (Apple Silicon, experimental):
+```bash
+chmod +x run_mac.zsh
+./run_mac.zsh
+```
+
+Windows: double-click `run_windows.bat` (or run it from a terminal).
+
+You can also use the manager directly from a terminal (handy on headless
+servers):
+
+```bash
+python3 -m manager install   # first-time setup
+python3 -m manager update    # pull updates + sync dependencies
+python3 -m manager launch    # start the UI
+python3 -m manager doctor    # diagnose problems
+```
+
+### Manual installation
 
 Requirements:
 - python >=3.10 (3.12 recommended)
@@ -99,7 +157,7 @@ cd ai-toolkit
 python3 -m venv venv
 source venv/bin/activate
 # install torch first
-pip3 install --no-cache-dir torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+pip3 install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip3 install -r requirements.txt
 ```
 
@@ -115,22 +173,8 @@ git clone https://github.com/ostris/ai-toolkit.git
 cd ai-toolkit
 python -m venv venv
 .\venv\Scripts\activate
-pip install --no-cache-dir torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+pip install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip install -r requirements.txt
-```
-
-MacOS:
-
-Experimental support for Silicon Macs is available. I do not have a Mac with enough RAM to fully test this
-so please let me know if there are issues. There is a convience script to install and run on MacOS 
-locates at `./run_mac.zsh` that will install the dependencies locally and run the UI. To run this, 
-do the following:
-
-```bash
-git clone https://github.com/ostris/ai-toolkit.git
-cd ai-toolkit
-chmod +x run_mac.zsh
-./run_mac.zsh
 ```
 
 
