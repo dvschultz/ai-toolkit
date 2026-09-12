@@ -47,7 +47,11 @@ MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
 INLINE_CTRL_IMG_RE = re.compile(r"(--ctrl_img\s+)(.+?)(?=\s+--|\s*$)")
 
 # Bare HF hub id: org/name, exactly one slash, no path-ish prefix.
-HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][\w.-]*/[\w.-]+$")
+# owner/repo, plus the owner/repo/file.safetensors form that assistant
+# (training-adapter) weights use -- see MinimaxH3Model.load_training_adapter,
+# which resolves exactly that 3-segment shape and downloads it on the pod.
+# Two segments only meant every H3 run failed preflight on its adapter path.
+HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][\w.-]*/[\w.-]+(?:/[\w.-]+)?$")
 
 # Fixes yaml not loading bare exponents (1e-4) as floats — same resolver as
 # toolkit/config.py, on a subclass so the global SafeLoader is not mutated.
