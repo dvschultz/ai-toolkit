@@ -36,6 +36,11 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 
 CONFIG_EXTENSIONS = ['.json', '.jsonc', '.yaml', '.yml']
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp'}
+# Video datasets are trainable media too (Wan, LTX-2, MiniMax-H3 ...). Without
+# these the scan counts zero media in a clip folder and preflight rejects every
+# video LoRA as an empty dataset.
+VIDEO_EXTS = {'.mp4', '.mov', '.mkv', '.webm', '.m4v', '.avi'}
+MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
 
 # Inline sample-prompt flag, per the SampleItem prompt grammar in
 # toolkit/config_modules.py (prompt.split('--'); content runs to next flag).
@@ -116,6 +121,7 @@ PROMPT_STRING_PATTERNS = [
 class DatasetReport:
     folder: str
     image_count: int = 0
+    video_count: int = 0
     caption_count: int = 0
     uncaptioned: list = field(default_factory=list)   # stems missing .txt
     excluded: list = field(default_factory=list)      # rel paths transport will skip
@@ -485,6 +491,9 @@ def scan_dataset(folder: str, check_captions: bool = True) -> DatasetReport:
             if ext.lower() in IMAGE_EXTS:
                 report.image_count += 1
                 image_stems.add(stem)
+            elif ext.lower() in VIDEO_EXTS:
+                report.video_count += 1
+                image_stems.add(stem)
             elif ext.lower() == '.txt':
                 report.caption_count += 1
                 caption_stems.add(stem)
@@ -579,20 +588,21 @@ def run_preflight(config_path: str, run_name: str = None, base_dir: str = ".",
     for dotted, local_abs, is_caption_dataset in remapper.dataset_dirs:
         report = scan_dataset(local_abs, check_captions=is_caption_dataset)
         dataset_reports.append(report)
-        if is_caption_dataset and report.image_count == 0:
+        if is_caption_dataset and report.image_count + report.video_count == 0:
             raise PreflightError(
-                f"{dotted}: no images ({'/'.join(sorted(IMAGE_EXTS))}) found "
+                f"{dotted}: no images or videos "
+                f"({'/'.join(sorted(MEDIA_EXTS))}) found "
                 f"in {local_abs}")
         if report.uncaptioned:
             stems = ", ".join(report.uncaptioned)
             if allow_uncaptioned:
                 warnings.append(
                     f"{dotted}: {len(report.uncaptioned)} of "
-                    f"{report.image_count} images have no .txt sidecar: {stems}")
+                    f"{report.image_count + report.video_count} media files have no .txt sidecar: {stems}")
             else:
                 raise PreflightError(
                     f"{dotted}: {len(report.uncaptioned)} of "
-                    f"{report.image_count} images have no .txt sidecar: {stems} "
+                    f"{report.image_count + report.video_count} media files have no .txt sidecar: {stems} "
                     "(pass allow_uncaptioned to proceed anyway)")
         if report.excluded:
             warnings.append(
