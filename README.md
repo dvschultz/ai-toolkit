@@ -75,7 +75,15 @@ The following models are supported for LoRA training (and in some cases full fin
 | Wan 2.2 TI2V 5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | `arch: wan22_5b` | — | 24GB |
 | LTX-2 | `Lightricks/LTX-2` | `arch: ltx2` | — | — |
 | LTX-2.3 | `Lightricks/LTX-2.3` | `arch: ltx2` | — | — |
-| MiniMax-H3 | `MiniMaxAI/MiniMax-H3` | `arch: minimax_h3` (also `minimax_h3_ref2va`, `minimax_h3_vsa`) | — | — |
+| MiniMax-H3 | `Comfy-Org/MiniMax-H3` [^h3] | `arch: minimax_h3` (also `minimax_h3_ref2va`, `minimax_h3_vsa`) | — | — |
+
+[^h3]: Use the **Comfy-Org repack**, not `MiniMaxAI/MiniMax-H3`. A hub-style
+`name_or_path` is treated as a replacement weights repo, and the original
+MiniMax repo does not contain the repacked transformer/text-encoder/VAE files
+the loader asks for — pointing at it fails with a 404 while the model is
+loading. (The original repo is still used for tokenizer/processor config; that
+path is resolved internally and needs no configuration.) The weights are
+already int8-ConvRot + nvfp4 quantized, so leave `quantize`/`quantize_te` off.
 
 ### Audio
 
