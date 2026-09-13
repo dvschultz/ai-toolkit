@@ -242,7 +242,10 @@ def cmd_preflight(args) -> int:
     print(f"  derived config: {result.derived_config_path}")
     print(f"  config hash:    {result.config_hash}")
     for report in result.dataset_reports:
-        print(f"  dataset {report.folder}: {report.image_count} image(s), "
+        media = (f"{report.image_count} image(s)" if not report.video_count
+                 else f"{report.video_count} video(s)" if not report.image_count
+                 else f"{report.image_count} image(s) + {report.video_count} video(s)")
+        print(f"  dataset {report.folder}: {media}, "
               f"{report.caption_count} caption(s), "
               f"{report.total_bytes / 1e6:.1f} MB to upload")
     print(f"  upload set: {len(result.upload_set)} path(s)")
