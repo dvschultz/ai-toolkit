@@ -324,6 +324,34 @@ export default function SimpleJob({
                 placeholder=""
               />
             )}
+            {modelArch?.customModelSelectOptions?.map(customOption => (
+              <SelectInput
+                key={customOption.label}
+                label={customOption.label}
+                value={customOption.getValue(jobConfig) ?? ''}
+                doc={customOption.doc}
+                onChange={value => customOption.onChange(value, jobConfig, setJobConfig)}
+                options={customOption.options}
+              />
+            ))}
+            {modelArch?.modelNotes && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const gateUrl = modelArch.gateUrl as string;
+                    openDoc({
+                      title: `Notes - ${modelArch.label}`,
+                      description: <div className="space-y-3">{modelArch.modelNotes}</div>,
+                    });
+                  }}
+                  className="w-full flex items-center gap-2 rounded-md bg-blue-950/60 border border-blue-800 px-3 py-2 text-sm text-blue-200 hover:bg-blue-900/60 text-left"
+                >
+                  <Info className="w-4 h-4 shrink-0 text-blue-400" />
+                  <span>Model notes</span>
+                </button>
+              </div>
+            )}
             {modelArch?.gateUrl && (
               <div className="pt-2">
                 <button
@@ -368,9 +396,9 @@ export default function SimpleJob({
                       ),
                     });
                   }}
-                  className="w-full flex items-center gap-2 rounded-md bg-blue-950/60 border border-blue-800 px-3 py-2 text-sm text-blue-200 hover:bg-blue-900/60 text-left"
+                  className="w-full flex items-center gap-2 rounded-md bg-yellow-950/60 border border-yellow-800 px-3 py-2 text-sm text-yellow-200 hover:bg-yellow-900/60 text-left"
                 >
-                  <Info className="w-4 h-4 shrink-0 text-blue-400" />
+                  <Info className="w-4 h-4 shrink-0 text-yellow-400" />
                   <span>
                     Gated model. <span className="underline">Learn more.</span>
                   </span>
@@ -886,6 +914,39 @@ export default function SimpleJob({
                     )}
                   </>
                 )}
+                <FormGroup label="Other" className="pt-2">
+                  <>
+                    <Checkbox
+                      label="Contrastive Guidance Loss"
+                      docKey={'train.do_guidance_loss'}
+                      className="pt-1"
+                      checked={jobConfig.config.process[0].train.do_guidance_loss || false}
+                      onChange={value => {
+                        if (value) {
+                          setJobConfig(true, 'config.process[0].train.do_guidance_loss');
+                          if (!jobConfig.config.process[0].train.guidance_loss_target) {
+                            setJobConfig(4.0, 'config.process[0].train.guidance_loss_target');
+                          }
+                        } else {
+                          setJobConfig(undefined, 'config.process[0].train.do_guidance_loss');
+                          setJobConfig(undefined, 'config.process[0].train.guidance_loss_target');
+                        }
+                      }}
+                    />
+                    {jobConfig.config.process[0].train.do_guidance_loss && (
+                      <>
+                        <NumberInput
+                          label="Guidance Loss Target"
+                          docKey={'train.guidance_loss_target'}
+                          value={(jobConfig.config.process[0].train.guidance_loss_target as number) || 4.0}
+                          onChange={value => setJobConfig(value, 'config.process[0].train.guidance_loss_target')}
+                          placeholder="eg. 3.0"
+                          min={0}
+                        />
+                      </>
+                    )}
+                  </>
+                </FormGroup>
               </div>
             </div>
           </Card>
@@ -1171,6 +1232,17 @@ export default function SimpleJob({
                         placeholder="eg. 1"
                         docKey={'dataset.num_repeats'}
                       />
+                      <NumberInput
+                        label="Batch Size"
+                        value={dataset.batch_size ?? null}
+                        className="pt-2"
+                        onChange={value =>
+                          setJobConfig(value == null ? undefined : value, `config.process[0].datasets[${i}].batch_size`)
+                        }
+                        placeholder={`${jobConfig.config.process[0].train.batch_size}`}
+                        min={1}
+                        allowEmpty
+                      />
                     </div>
                     <div>
                       <TextInput
@@ -1182,6 +1254,7 @@ export default function SimpleJob({
                       <NumberInput
                         label="Caption Dropout Rate"
                         className="pt-2"
+                        docKey="datasets.caption_dropout_rate"
                         value={dataset.caption_dropout_rate}
                         onChange={value => setJobConfig(value, `config.process[0].datasets[${i}].caption_dropout_rate`)}
                         placeholder="eg. 0.05"
@@ -1347,6 +1420,14 @@ export default function SimpleJob({
                   // automaticallt add the controls for a new dataset
                   const controls = modelArch?.controls ?? [];
                   newDataset.controls = controls;
+                  // arch dataset defaults (datasets[x].*) apply to added datasets too, not just at arch switch
+                  for (const key in modelArch?.defaults ?? {}) {
+                    const marker = 'datasets[x].';
+                    const idx = key.indexOf(marker);
+                    if (idx !== -1) {
+                      (newDataset as any)[key.slice(idx + marker.length)] = modelArch!.defaults![key][0];
+                    }
+                  }
                   setJobConfig([...jobConfig.config.process[0].datasets, newDataset], 'config.process[0].datasets');
                 }}
                 className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
@@ -1460,6 +1541,17 @@ export default function SimpleJob({
                   min={0}
                   required
                 />
+                {modelArch?.additionalSections?.includes('sample.duration') && (
+                  <NumberInput
+                    label="Duration (seconds)"
+                    value={jobConfig.config.process[0].sample.duration ?? 120}
+                    onChange={value => setJobConfig(value, 'config.process[0].sample.duration')}
+                    placeholder="eg. 120"
+                    className="pt-2"
+                    min={1}
+                    required
+                  />
+                )}
                 <Checkbox
                   label="Walk Seed"
                   className="pt-4 pl-2"
