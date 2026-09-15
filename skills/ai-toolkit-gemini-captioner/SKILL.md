@@ -87,6 +87,31 @@ v1, baked color into trigger`).
 | `TRIGGER` token replacement | Character mode. Caption starts with the literal trigger word (e.g. `p3r5on wearing a sweater...`). Gemini writes `TRIGGER`; the script substitutes. |
 | `--trigger "trigger"` appended | Motion mode. Same as style suffix, but called `--trigger` since there's no anchored-word concept. |
 
+### 4b. Inverse marking — caption the exception, not the rule
+
+The default move is omit-to-bake: leave the style out of every caption so it
+binds to the trigger. That only works when the style is in (nearly) every
+image. When the Stage 0.5 coverage survey says the make-or-break register
+sits in **under ~60%** of the plates, omission alone makes it a minority
+pattern the trainer averages away.
+
+Invert instead: leave the register unmarked everywhere it appears, and add a
+short marker to the plates that **lack** it, so "has the register" stays the
+trigger's default and "clean" becomes the describable exception.
+
+- decker-protocolized v3: 19 heavy / 19 mild / 4 clean plates. The four clean
+  ones got `, clean and sharp` before the trigger; nothing else changed. The
+  register reached the samples for the first time in three runs.
+- Keep the marker **short, plain, and non-loaded** — two or three ordinary
+  words. Avoid vocabulary the base has a strong prior for (`photograph`,
+  `HD`, `professional`), which pulls a whole unwanted register in with it.
+- It is a caption change, so it costs a recaption and a rerun to undo. Get
+  the coverage number before writing captions, not after the first run.
+
+This is the mirror image of the degree-captioning rule (caption the DEGREE
+when the artist wants a range); here the artist wants one state to be
+automatic, so you mark only its absence.
+
 ### 5. Render the script
 
 Copy the appropriate template from `references/` into a new file at

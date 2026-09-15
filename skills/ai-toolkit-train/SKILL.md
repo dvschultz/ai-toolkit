@@ -40,6 +40,7 @@ launch decision, the checkpoint pick).
 0. Frame      -> goal, dataset location, target model, compute (local vs RunPod)
                  + expectations block (cost / time / walk-away)
 0.5 Dataset   -> references/dataset-readiness.md   [GATE: GO / FIX FIRST / STOP]
+                 (artist's reference images + register coverage survey FIRST)
 0.75 Brief    -> ai-toolkit-model-brief            [GATE: user confirms the brief]
 1. Config     -> ai-toolkit-lora-config            [GATE: user approves the YAML]
 2. Caption    -> ai-toolkit-gemini-captioner
@@ -97,9 +98,15 @@ first-time trainers get lost; surface them here, not at the launch gate.
 ## Stage 0.5 — Dataset readiness  ·  `references/dataset-readiness.md`
 
 A clean run on a bad dataset is the most expensive failure in the pipeline —
-every later gate passes and the result is still wrong. Before any config:
-list the dataset folder, look at 5–8 representative images, and walk the
-readiness checklist (count vs. goal, watermarks/logos/text, one aesthetic or
+every later gate passes and the result is still wrong. **Open by asking the
+artist for the 3–4 images that ARE the style**; those references anchor the
+ground truth and every texture verdict downstream, because your own image
+read flattens processing texture into "photorealistic" and has already cost
+one project two full runs. Then: list the dataset folder, look at 5–8
+representative images, **measure the make-or-break register's coverage with
+`scripts/register_judge_gemini.py`** (under a dollar, and the number
+dictates EMA/rank/bucket choices at Stage 1), and walk the readiness
+checklist (count vs. goal, watermarks/logos/text, one aesthetic or
 subject per folder, variety in what should stay promptable, duplicates,
 quality floor, rights, mechanical hygiene). Watermarks are the
 non-negotiable: they reproduce as garbled text in every output — crop them
@@ -232,7 +239,14 @@ When the run reaches a terminal state (or you stopped early), do the final
 review across the saved checkpoints.
 
 **GATE:** remember **LoRA checkpoint trajectories are non-monotonic** —
-review 3+ late checkpoints, never auto-pick the last save. The user picks
+review 3+ late checkpoints, never auto-pick the last save. Two further
+gates before any winner is named (both in the reviewer skill, Step 5b):
+**(a)** on a base that trains and deploys on different weights (Krea2 Raw →
+Turbo), decide MUSTs from endpoint renders across a scale sweep, never from
+training samples — Raw has been wrong in both directions, hiding real
+failures *and* inventing ones; **(b)** the artist looks at outputs beside
+their own reference images before you write deploy notes. A verdict without
+(b) is provisional and must be reported as provisional. The user picks
 the winner (and optionally a merge of a few). This is their call, not yours.
 For a first-time trainer, present the reviewer's winner as the recommended
 default with winner-vs-dataset images side by side and one runner-up — never
@@ -269,6 +283,8 @@ the diagnosis changed a requirement (note what changed and why):
 | Memorization (identical compositions, dataset subjects recurring) | Stage 1 (± 0.5) | Lower rank and/or fewer steps; check dataset variety |
 | Style/identity never appears (undertrained at every save) | Stage 1 | More steps and/or higher lr/rank |
 | Gibberish text in outputs | Stage 0.5 | Crop the watermarks/text the readiness check missed |
+| Gibberish logotypes where a symbol/glyph should be | Stage 2–3 | A text-strong base claimed the un-captioned glyph slot. Caption it with a non-text noun anchor and make it promptable |
+| The make-or-break TEXTURE never appears (palette/light fine) | Stage 1 (± 0.5) | EMA off, rank up, native-resolution bucket only, inverse-mark the clean plates, or train the heavy subset. Confirm with the register judge against the artist's references, not by eye |
 | Crash at startup | per `ai-toolkit-dataset-diagnostics` | Usually config/dataset mechanical fix, then relaunch |
 
 Two rules for the v2 config:

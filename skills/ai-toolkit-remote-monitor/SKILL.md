@@ -107,6 +107,26 @@ in the JSON tells you which are local to compare.
   pod still trains the original. The new config only applies on next launch.
 - **SAMPLING** — step stall with fresh sample-file mtimes is normal (12-16
   images × ~45s), not a hang.
+- **`noise_suspect: true`** — **stop and look at a sample image before
+  anything else.** The newest pulled batch has the file-size signature of
+  pure noise: a dozen JPEGs of near-identical, near-ceiling size where a
+  healthy batch of different prompts varies several-fold. A diverging
+  trainer does not show up in the loss — the EMA sign bug ran at loss
+  0.10-0.24 with no NaN while every sample and every saved checkpoint was
+  noise, and the run was only caught because a human opened an image. If
+  the sample is noise: stop the run immediately (nothing it saves is
+  usable), then confirm with `||B@A||` growth between two consecutive
+  checkpoints (170x over 250 steps in the known case) and check the EMA
+  update sign in `toolkit/ema.py`. Preflight now refuses EMA runs on a
+  broken ema.py, so a fresh trip means a *new* cause — investigate before
+  relaunching.
+
+**The general lesson: a healthy loss curve is not evidence that a run is
+producing usable output.** Loss is computed on the live weights; samples
+and checkpoints are written from the EMA shadow. Anything that corrupts the
+shadow, the save path, or the sampler is invisible in-band. Whenever a run
+looks fine but you have not actually opened an image for several hundred
+steps, open one.
 
 ## Stopping early
 

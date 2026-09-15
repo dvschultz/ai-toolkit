@@ -209,6 +209,10 @@ def _print_report(report) -> None:
     if report.drift:
         print("  CONFIG DRIFT: local derived config no longer matches the "
               "hash this run launched with")
+    if getattr(report, "noise_suspect", False):
+        print("  ** POSSIBLE DIVERGENCE ** the newest sample batch has the "
+              "file-size signature of noise images — open one before spending "
+              "another GPU hour (see detail)")
     if report.reviewable:
         print(f"  reviewable sample steps: {report.reviewable}")
     if report.detail:

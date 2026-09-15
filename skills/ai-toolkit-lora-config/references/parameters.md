@@ -64,7 +64,9 @@ train:
 
 **`diff_output_preservation`**: regularization. See DOP section in SKILL.md. Nearly doubles memory — pair with gradient_checkpointing.
 
-**`ema_config.use_ema: true`**: exponential moving average of LoRA weights. Smooths training, improves generalization. Small speed cost. Keep on.
+**`ema_config.use_ema: true`**: exponential moving average of LoRA weights. Smooths training, improves generalization. Small speed cost. Keep on **unless the make-or-break is a fine/high-variance register** — texture, grain, glitch artifacts, filaments, halftone structure. EMA averages exactly that away: on decker-protocolized an EMA-on run scored 0/3 on its artifact texture at every checkpoint, and the same recipe with `use_ema: false` put the register on screen by step 1250 (Kirlian's filaments were the earlier case). The cost of turning it off is a noisier, non-monotonic checkpoint trajectory — plan on judging more late saves, and keep every save.
+
+Also: verify the EMA update is not inverted before trusting an EMA run. Remote preflight now refuses to launch when `use_ema` is set and `toolkit/ema.py` carries the upstream sign bug; if you are training locally, check that line yourself.
 
 **`dtype: bf16`**: required for most modern models on modern GPUs (A100+, H100). Do not change.
 

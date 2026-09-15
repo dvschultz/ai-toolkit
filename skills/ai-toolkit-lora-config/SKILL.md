@@ -200,6 +200,23 @@ datasets:
 
 Note on batch size: counterintuitively, larger batches are worse for small datasets (under ~40 images) because they cycle through the dataset too fast and accelerate overfitting. Stay at batch 1-2 for small sets even with abundant VRAM.
 
+## Register coverage → config levers (read this off the brief)
+
+The brief's Stage 0.5 survey says what fraction of the dataset actually
+carries the make-or-break register. That number is a config instruction,
+and ignoring it is how a run comes back technically clean and artistically
+wrong:
+
+| Coverage at >=2 | Levers |
+|---|---|
+| ~90-100% | Standard recipe. It binds by omission |
+| ~60-90% | Standard recipe, but keep EMA decay modest and review late saves carefully |
+| **under ~60%** | EMA **off**; rank up one notch (32 → 48) if the register has multiple distinct modes; **drop sub-native resolution buckets** (a 768 bucket smears streak/block/grain structure into ordinary blur); have the captioner **inverse-mark the plates that score 0** (caption the exception — `, clean and sharp` — leaving the register unmarked and therefore the trigger's default); optionally train only the heavy subset |
+
+The decker-protocolized v1/v2 configs were textbook-correct (rank 32, EMA
+0.99, buckets [768, 1024]) and lost the register completely at 45% coverage;
+v3 changed exactly these four levers and recovered it.
+
 ## Step count heuristics
 
 Rough starting points. Always encourage user to check 250-step interval saves and pick the sweet spot manually.

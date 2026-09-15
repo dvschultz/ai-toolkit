@@ -12,14 +12,47 @@ right thing?"
 
 ## How to run it
 
+0. **Ask the artist which images ARE the style** — "point me at the 3–4
+   images that most are the thing you want back." Do this FIRST, before you
+   form your own opinion of the dataset. Those images become the reference
+   set for step 4 and the anchor for the whole run. See "Why you cannot
+   trust your own read" below — this step is not optional politeness, it is
+   the correction for a known blind spot that has cost a full project.
 1. **List the folder** — count files, note extensions, subfolders, anything
    that isn't an image (or video, for motion LoRAs).
 2. **Look at 5–8 representative images** with the Read tool — spread across
    the folder, not the first 8 alphabetically.
 3. **Walk the checklist below** and note any failures.
-4. **Reflect back what you see** (see "The reflect-back gate") and get the
+4. **Survey the make-or-break register's coverage** (checklist item 9) with
+   `scripts/register_judge_gemini.py` and the artist's reference images.
+5. **Reflect back what you see** (see "The reflect-back gate") and get the
    user's confirmation.
-5. **Issue a verdict**: GO / FIX FIRST / STOP.
+6. **Issue a verdict**: GO / FIX FIRST / STOP.
+
+## Why you cannot trust your own read of the images
+
+Your image-reading path summarizes composition, palette, subject and mood
+well, and **flattens processing texture into a single adjective** —
+"photorealistic", "sharp", "soft". Any style whose signature IS the
+processing is therefore invisible to you: lo-fi/GAN smear, datamosh,
+scanline streaking, halftone density, grain structure, print artifacts,
+chroma noise, compression blocks.
+
+This is not hypothetical. On decker-protocolized the ground truth was
+written as "photographic, long-exposure with flares" from exactly this kind
+of read. Two complete trainings (~$17 and several hours) optimized a target
+that was missing the make-or-break, a reference-calibrated judge later
+scored every checkpoint of both runs **0/3** on the register that actually
+mattered, and only the artist pasting four of their own images surfaced it.
+
+Two consequences, both mandatory:
+
+- The ground-truth spec is written **from the artist's named reference
+  images**, in their words where possible, with the processing named
+  explicitly ("vertical pixel-streak curtains", not "stylized").
+- Any verdict about texture — at this stage, at Stage 5, at Stage 6 — comes
+  from the register judge scored against those references, never from your
+  own description of a sample.
 
 ## The checklist
 
@@ -117,6 +150,42 @@ Quick scan, then route — don't fix by hand here:
 Anything found → run `ai-toolkit-dataset-diagnostics`' preflight checklist
 before Stage 1.
 
+### 9. Make-or-break register coverage (run the judge)
+
+Identify the one ingredient that, if lost, makes the run a failure — the
+palette, the texture, the mark-making, the print artifacts. Then **measure
+how much of the dataset actually carries it** rather than assuming the
+artist's description applies evenly:
+
+```bash
+source .venv-captioning/bin/activate
+python scripts/register_judge_gemini.py \
+    --refs <the artist's 3-4 reference images> \
+    --register "<what it is, in concrete visual terms>" \
+    --exclude "<what must not count: usually palette/lighting/subject>" \
+    --out output/<run>/register_dataset.json \
+    <dataset>/*.png
+```
+
+It prints a coverage percentage. Read it as a **config instruction**, not
+as trivia:
+
+| Coverage at >=2 | What it means | What the config must do |
+|---|---|---|
+| ~90-100% | Dominant register | Binds by omission; standard recipe works |
+| ~60-90% | Majority register | Binds, but keep EMA modest and check late saves |
+| **under ~60%** | **Minority register** | **Will NOT bind by omission.** EMA off, higher rank, native-resolution-only buckets, and either inverse-mark the clean plates in captions or train the heavy subset |
+
+On decker-protocolized the split was 19 heavy / 19 mild / 4 clean — 45%.
+That number, available for well under a dollar before any GPU spend,
+predicted both failed runs exactly: EMA at 0.99 averaged a minority
+register away, and a 768 bucket smeared what was left. The survey is the
+cheapest config decision in the pipeline.
+
+Also note which plates score 0. Those are the ones to inverse-mark (caption
+the *exception*, e.g. `, clean and sharp`, leaving the register unmarked and
+therefore the trigger's default) — see the captioner skill.
+
 ## The reflect-back gate (most important step for a first-timer)
 
 After looking at the images, describe **in plain words, no jargon**:
@@ -124,7 +193,14 @@ After looking at the images, describe **in plain words, no jargon**:
 1. What you believe the model is supposed to learn from these images (the
    thing that will be baked in, activated by the trigger word).
 2. What will stay controllable at prompt time (subjects, settings, etc.).
-3. Anything you saw that surprised you or doesn't fit.
+3. **How the images are made or processed** — name the texture, the medium,
+   the artifacts, the rendering, not just the palette and the subjects. If
+   you cannot say this in concrete terms, you have not looked hard enough
+   at the reference images, and the run will optimize the wrong thing.
+4. The register coverage number from item 9, in plain words ("about half
+   your images carry that heavily, so I'm going to configure the run to
+   hold on to it").
+5. Anything you saw that surprised you or doesn't fit.
 
 Then ask: **"Is that the thing you want the model to learn?"**
 
