@@ -133,7 +133,8 @@ class ExponentialMovingAverage:
                 if param.dtype != torch.float32:
                     param_float = param_float.to(torch.float32)
                 gap = (s_param_float - param_float)
-                s_param_float.add_(gap * one_minus_decay)
+                # EMA: shadow <- decay*shadow + (1-decay)*param == shadow - (1-decay)*gap
+                s_param_float.sub_(gap * one_minus_decay)
                 
                 update_param = False
                 if self.use_feedback:

@@ -406,6 +406,52 @@ PUSH_TO_HUB_WARNING = (
 )
 
 
+# EMA correctness guard. Upstream 4a41f14 (2026-09-09) flipped the EMA update
+# sign (shadow moved AWAY from the params by (1-decay) per step), which makes
+# every sampled image and every saved checkpoint diverge into noise while the
+# training loss stays perfectly healthy — a silently wasted multi-hour run
+# (decker_protocolized_krea2_v1, 2026-09-14). The local fork fixes it; a future
+# upstream merge would revert it just as silently, so verify the code we are
+# about to ship whenever the run actually uses EMA. Source-level on purpose:
+# preflight must stay dependency-free (no torch on the laptop).
+EMA_SOURCE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "toolkit", "ema.py")
+EMA_CORRECT = "s_param_float.sub_(gap * one_minus_decay)"
+EMA_BROKEN = "s_param_float.add_(gap * one_minus_decay)"
+
+
+def check_ema_implementation(process: dict, prefix: str):
+    """Refuse to launch an EMA run on a trainer whose EMA update is inverted."""
+    ema_config = _get_in(process, 'train', 'ema_config') or {}
+    if not ema_config.get('use_ema'):
+        return
+    try:
+        with open(EMA_SOURCE, 'r', encoding='utf-8') as fh:
+            src = fh.read()
+    except OSError as e:
+        raise PreflightError(
+            f"{prefix}.train.ema_config.use_ema is true but {EMA_SOURCE} "
+            f"could not be read to verify the EMA update ({e})") from None
+    if EMA_CORRECT in src:
+        return
+    if EMA_BROKEN in src:
+        raise PreflightError(
+            f"{prefix}.train.ema_config.use_ema is true, but toolkit/ema.py "
+            f"has the INVERTED upstream EMA update ('{EMA_BROKEN}').\n"
+            "The shadow weights diverge while the loss looks healthy, so every "
+            "sample and checkpoint this run saves will be noise.\n"
+            f"Fix: change that line to '{EMA_CORRECT}' in toolkit/ema.py "
+            "(it was almost certainly reverted by an upstream merge), or set "
+            "use_ema: false.")
+    raise PreflightError(
+        f"{prefix}.train.ema_config.use_ema is true, but the EMA update in "
+        f"{EMA_SOURCE} matches neither the known-good nor the known-broken "
+        "form — upstream changed the implementation. Read it and confirm the "
+        "shadow moves TOWARD the params before spending GPU hours, then "
+        "update EMA_CORRECT in this file.")
+
+
 def enforce_invariants(process: dict, prefix: str, changes: list, warnings: list):
     logging_block = process.get('logging')
     if not isinstance(logging_block, dict):
@@ -576,6 +622,7 @@ def run_preflight(config_path: str, run_name: str = None, base_dir: str = ".",
         prefix = f"config.process[{i}]"
         remapper.apply(process, prefix)
         enforce_invariants(process, prefix, remapper.changes, warnings)
+        check_ema_implementation(process, prefix)
     changes = remapper.changes
 
     # closing generic sweep over the whole derived config (R3 backstop)
