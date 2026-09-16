@@ -1,6 +1,14 @@
-import { GroupedSelectOption, SelectOption, JobConfig } from '@/types';
+import React from 'react';
+import Link from 'next/link';
+import { GroupedSelectOption, SelectOption, JobConfig, ConfigDoc } from '@/types';
 import { defaultSliderConfig } from './jobConfig';
-import { defaultAudioSampleConfig, defaultSampleConfig, defaultIdeogramSamplesConfig } from '@/helpers/defaultSamples';
+import {
+  defaultAudioSampleConfig,
+  defaultSampleConfig,
+  defaultIdeogramSamplesConfig,
+  defaultYue2SampleConfig,
+  defaultQwen25OmniSampleConfig,
+} from '@/helpers/defaultSamples';
 
 type Control = 'depth' | 'line' | 'pose' | 'inpaint';
 
@@ -25,6 +33,7 @@ type AdditionalSections =
   | 'datasets.auto_frame_count'
   | 'sample.ctrl_img'
   | 'sample.multi_ctrl_imgs'
+  | 'sample.duration'
   | 'train.audio_loss_multiplier'
   | 'datasets.num_frames'
   | 'model.multistage'
@@ -34,24 +43,63 @@ type AdditionalSections =
   | 'model.assistant_lora_path'
   | 'model.unconditional_lora_path'
   | 'model.model_kwargs.kv_cache'
+  | 'model.model_kwargs.instruction'
   | 'ideogram_4_prompt';
 
-type ModelGroup = 'image' | 'instruction' | 'video' | 'experimental' | 'audio';
+type ModelGroup = 'image' | 'instruction' | 'video' | 'experimental' | 'audio' | 'llm';
+
+export interface CustomModelSelectOption {
+  label: string;
+  options: SelectOption[];
+  getValue: (config: JobConfig) => string | undefined;
+  onChange: (value: string, config: JobConfig, setJobConfig: (value: any, key: string) => void) => void;
+  doc?: ConfigDoc;
+}
 
 export type SampleTag = {
   title: string;
-  type: 'text' | 'multiline' | 'number'
+  type: 'text' | 'multiline' | 'number';
   full?: boolean;
-}
+};
 
 export interface SampleTags {
   [key: string]: SampleTag;
 }
 
+export type GenerateModality = 'image' | 'video' | 'audio';
+
+// Per-arch overrides for the Generate page. Everything it needs is derived
+// from the training entry (name_or_path / quantize defaults, video/audio
+// group, ctrl_img section); set these only where the derivation is wrong.
+export interface GenerateOptions {
+  modality?: GenerateModality;
+  model?: { [key: string]: any }; // extra ModelConfig kwargs
+  sample?: { [key: string]: any }; // GenerateImageConfig kwargs
+  needsControlImage?: boolean;
+  sizeLocked?: boolean;
+}
+
+export interface GenerateDefaults {
+  arch: string;
+  label: string;
+  group: ModelGroup;
+  modality: GenerateModality;
+  model: { [key: string]: any };
+  sample: { [key: string]: any };
+  needsControlImage: boolean;
+  sizeLocked: boolean;
+  /** structured prompt fields (audio models): the prompt is their tagged form */
+  sampleTags?: SampleTags;
+}
+
 export interface ModelArch {
   name: string;
   label: string;
+  /** label shown by the Generate page instead of `label` (training-specific
+   * wording like "w/ Training Adapter" does not apply to inference) */
+  generateNameOverride?: string;
   group: ModelGroup;
+  generate?: GenerateOptions;
   controls?: Control[];
   isVideoModel?: boolean;
   hasMultiLinePrompts?: boolean;
@@ -61,6 +109,8 @@ export interface ModelArch {
   accuracyRecoveryAdapters?: { [key: string]: string };
   sampleTags?: SampleTags;
   gateUrl?: string;
+  modelNotes?: React.ReactNode;
+  customModelSelectOptions?: CustomModelSelectOption[];
 }
 
 const defaultNameOrPath = '';
@@ -184,7 +234,10 @@ export const modelArchs: ModelArch[] = [
     group: 'experimental',
     defaults: {
       // default updates when [selected, unselected] in the UI
-      'config.process[0].model.name_or_path': ['lodestones/Zeta-Chroma/zeta-chroma-base-x0-pixel-dino-distance.safetensors', defaultNameOrPath],
+      'config.process[0].model.name_or_path': [
+        'lodestones/Zeta-Chroma/zeta-chroma-base-x0-pixel-dino-distance.safetensors',
+        defaultNameOrPath,
+      ],
       'config.process[0].model.extras_name_or_path': ['Tongyi-MAI/Z-Image-Turbo', undefined],
       'config.process[0].model.quantize': [true, false],
       'config.process[0].model.quantize_te': [true, false],
@@ -297,7 +350,13 @@ export const modelArchs: ModelArch[] = [
       ],
     },
     disableSections: ['network.conv'],
-    additionalSections: ['datasets.num_frames', 'model.low_vram', 'model.multistage', 'model.layer_offloading', 'datasets.auto_frame_count'],
+    additionalSections: [
+      'datasets.num_frames',
+      'model.low_vram',
+      'model.multistage',
+      'model.layer_offloading',
+      'datasets.auto_frame_count',
+    ],
     accuracyRecoveryAdapters: {
       // '3 bit with ARA': 'uint3|ostris/accuracy_recovery_adapters/wan22_14b_t2i_torchao_uint3.safetensors',
       '4 bit with ARA': 'uint4|ostris/accuracy_recovery_adapters/wan22_14b_t2i_torchao_uint4.safetensors',
@@ -363,7 +422,13 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].datasets[x].fps': [24, undefined],
     },
     disableSections: ['network.conv'],
-    additionalSections: ['sample.ctrl_img', 'datasets.num_frames', 'model.low_vram', 'datasets.do_i2v', 'datasets.auto_frame_count'],
+    additionalSections: [
+      'sample.ctrl_img',
+      'datasets.num_frames',
+      'model.low_vram',
+      'datasets.do_i2v',
+      'datasets.auto_frame_count',
+    ],
   },
   {
     name: 'lumina2',
@@ -631,6 +696,7 @@ export const modelArchs: ModelArch[] = [
   {
     name: 'zimage:turbo',
     label: 'Z-Image Turbo (w/ Training Adapter)',
+    generateNameOverride: 'Z-Image Turbo',
     group: 'image',
     defaults: {
       // default updates when [selected, unselected] in the UI
@@ -696,6 +762,368 @@ export const modelArchs: ModelArch[] = [
     additionalSections: ['model.low_vram', 'model.layer_offloading'],
   },
   {
+    name: 'minimax_h3',
+    label: 'MiniMax-H3',
+    group: 'video',
+    isVideoModel: true,
+    defaults: {
+      // default updates when [selected, unselected] in the UI
+      'config.process[0].model.name_or_path': ['Comfy-Org/MiniMax-H3', defaultNameOrPath],
+      // the Comfy-Org weights are pre-quantized (int8 convrot DiT, nvfp4 TE); these
+      // qtypes match the checkpoints exactly, so the load is unchanged. Picking a
+      // different qtype re-quantizes layer by layer into that format.
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.qtype': ['convrot8', 'qfloat8'],
+      'config.process[0].model.quantize_te': [true, false],
+      'config.process[0].model.qtype_te': ['nvfp4', 'qfloat8'],
+      'config.process[0].model.low_vram': [true, false],
+      'config.process[0].sample.sampler': ['flowmatch', 'flowmatch'],
+      'config.process[0].train.noise_scheduler': ['flowmatch', 'flowmatch'],
+      'config.process[0].train.cache_text_embeddings': [true, false],
+      'config.process[0].train.do_guidance_loss': [true, undefined],
+      'config.process[0].train.guidance_loss_target': [3.5, undefined],
+      'config.process[0].model.assistant_lora_path': [
+        'ostris/minimax_h3_training_adapter/minimax_h3_training_adapter_v1.safetensors',
+        undefined,
+      ],
+      'config.process[0].network.linear': [16, defaultLinearRank],
+      'config.process[0].network.linear_alpha': [16, defaultLinearRank],
+      'config.process[0].network.network_kwargs.ignore_if_contains': [['adaln_proj'], []],
+      'config.process[0].sample.num_frames': [107, 1],
+      'config.process[0].sample.fps': [24, 1],
+      'config.process[0].sample.width': [768, 1024],
+      'config.process[0].sample.height': [768, 1024],
+      'config.process[0].sample.guidance_scale': [1, 4],
+      'config.process[0].sample.sample_steps': [28, 25],
+      'config.process[0].train.audio_loss_multiplier': [1.0, undefined],
+      'config.process[0].train.timestep_type': ['shift', 'sigmoid'],
+      'config.process[0].datasets[x].do_i2v': [false, undefined],
+      'config.process[0].datasets[x].do_audio': [true, undefined],
+      'config.process[0].datasets[x].cache_latents_to_disk': [true, false],
+      'config.process[0].datasets[x].fps': [24, undefined],
+      'config.process[0].datasets[x].num_frames': [39, undefined],
+      'config.process[0].datasets[x].auto_frame_count': [true, undefined],
+    },
+    disableSections: ['network.conv'],
+    additionalSections: [
+      'sample.ctrl_img',
+      'datasets.num_frames',
+      'model.layer_offloading',
+      'model.low_vram',
+      'datasets.do_audio',
+      'datasets.audio_normalize',
+      'datasets.audio_preserve_pitch',
+      'datasets.do_i2v',
+      'train.audio_loss_multiplier',
+      'datasets.auto_frame_count',
+      'model.assistant_lora_path',
+    ],
+    customModelSelectOptions: [
+      {
+        label: 'Distillation Handling Method',
+        options: [
+          { value: 'cg', label: 'Contrastive Guidance' },
+          { value: 'ta', label: 'Training Adapter' },
+          { value: 'both', label: 'Contrastive Guidance + Training Adapter (default)' },
+          { value: 'none', label: 'None' },
+        ],
+        getValue: (config: JobConfig) => {
+          const assistantLoraPath = config?.config?.process?.[0]?.model?.assistant_lora_path;
+          const hasAssistantLoraPath = assistantLoraPath && assistantLoraPath.trim() !== '';
+          const hasContrastiveGuidance = config?.config?.process?.[0]?.train?.do_guidance_loss;
+          if (hasAssistantLoraPath && hasContrastiveGuidance) {
+            return 'both';
+          }
+          if (hasAssistantLoraPath) {
+            return 'ta';
+          }
+          if (hasContrastiveGuidance) {
+            return 'cg';
+          }
+          return 'none';
+        },
+        onChange: (value: string, config: JobConfig, setJobConfig: (value: any, key: string) => void) => {
+          if (value === 'cg') {
+            setJobConfig(true, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(undefined, 'config.process[0].model.assistant_lora_path');
+            if (!config?.config?.process?.[0]?.train?.guidance_loss_target) {
+              setJobConfig(3.5, 'config.process[0].train.guidance_loss_target');
+            }
+          } else if (value === 'ta') {
+            setJobConfig(undefined, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(undefined, 'config.process[0].train.guidance_loss_target');
+            setJobConfig(
+              'ostris/minimax_h3_training_adapter/minimax_h3_training_adapter_v1.safetensors',
+              'config.process[0].model.assistant_lora_path',
+            );
+          } else if (value === 'both') {
+            setJobConfig(true, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(
+              'ostris/minimax_h3_training_adapter/minimax_h3_training_adapter_v1.safetensors',
+              'config.process[0].model.assistant_lora_path',
+            );
+            if (!config?.config?.process?.[0]?.train?.guidance_loss_target) {
+              setJobConfig(3.5, 'config.process[0].train.guidance_loss_target');
+            }
+          } else if (value === 'none') {
+            setJobConfig(undefined, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(undefined, 'config.process[0].train.guidance_loss_target');
+            setJobConfig(undefined, 'config.process[0].model.assistant_lora_path');
+          }
+        },
+        doc: {
+          title: 'MiniMax-H3 Distillation Handling',
+          description: (
+            <div>
+              MiniMax H3 is a guidance distilled model, so training on it directly will make the guidance distillation
+              break down. There are two different ways to train on this model without breaking the guidance
+              distillation: Contrastive Guidance and Training Adapter. Both have their pros and cons. The adapter is
+              faster, but will still break down over a long run. Contrastive Guidance is slower, but is less likely to
+              break down.
+            </div>
+          ),
+        },
+      },
+    ],
+    modelNotes: (
+      <div className="space-y-2">
+        <p>
+          Weights load from the{' '}
+          <Link href="/settings" className="text-blue-400 hover:underline">
+            Models Folder Path
+          </Link>{' '}
+          set in settings. Anything missing is downloaded there from <code>Comfy-Org/MiniMax-H3</code> on first load
+          (~43GB total). Files used:
+        </p>
+        <pre className="bg-gray-900 border border-gray-700 rounded-lg p-3 text-xs overflow-x-auto">
+          <code>{`<MODELS_PATH>/
+├── diffusion_models/
+│   └── minimax_h3_fl2va_pruned_int8_convrot.safetensors
+├── text_encoders/
+│   └── qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
+└── vae/
+    ├── minimax_h3_video_vae_fp16.safetensors
+    └── minimax_h3_audio_vae_fp32.safetensors`}</code>
+        </pre>
+        <p>
+          The checkpoints are pre-quantized and load directly: int8 ConvRot DiT (~21GB) and nvfp4 Qwen3-VL text encoder
+          (~16GB). The default qtypes (<code>convrot8</code> / <code>nvfp4</code>) match the files exactly, so nothing
+          is re-quantized on load. Picking a different quantization re-quantizes the pre-quantized layers into that
+          format, one layer at a time.
+        </p>
+        <p>
+          Supports t2v and first-frame i2v (ctrl img / i2v datasets) with joint audio. The model is guidance-distilled —
+          keep guidance scale at 1. Video is fixed 24 fps and frame counts snap down to the 17n+5 grid (5, 22, 39, 56,
+          ..., 107, 124 ≈ 5s). Image datasets (num_frames 1) train as single frames, and a sample with num_frames 1
+          renders a single image.
+        </p>
+      </div>
+    ),
+  },
+  {
+    name: 'minimax_h3_ref2va',
+    label: 'MiniMax-H3 Ref2V',
+    group: 'video',
+    isVideoModel: true,
+    defaults: {
+      // default updates when [selected, unselected] in the UI
+      'config.process[0].model.name_or_path': ['Comfy-Org/MiniMax-H3', defaultNameOrPath],
+      // pre-quantized weights: matching qtypes keep the load unchanged
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.qtype': ['convrot8', 'qfloat8'],
+      'config.process[0].model.quantize_te': [true, false],
+      'config.process[0].model.qtype_te': ['nvfp4', 'qfloat8'],
+      'config.process[0].model.low_vram': [true, false],
+      'config.process[0].sample.sampler': ['flowmatch', 'flowmatch'],
+      'config.process[0].train.noise_scheduler': ['flowmatch', 'flowmatch'],
+      'config.process[0].train.cache_text_embeddings': [true, false],
+      'config.process[0].train.do_guidance_loss': [true, undefined],
+      'config.process[0].train.guidance_loss_target': [3.5, undefined],
+      'config.process[0].model.assistant_lora_path': [
+        'ostris/minimax_h3_training_adapter/minimax_h3_ref2va_training_adapter_v1.safetensors',
+        undefined,
+      ],
+      'config.process[0].network.linear': [16, defaultLinearRank],
+      'config.process[0].network.linear_alpha': [16, defaultLinearRank],
+      'config.process[0].network.network_kwargs.ignore_if_contains': [['adaln_proj'], []],
+      'config.process[0].sample.num_frames': [107, 1],
+      'config.process[0].sample.fps': [24, 1],
+      'config.process[0].sample.width': [768, 1024],
+      'config.process[0].sample.height': [768, 1024],
+      'config.process[0].sample.guidance_scale': [1, 4],
+      'config.process[0].sample.sample_steps': [28, 25],
+      'config.process[0].train.audio_loss_multiplier': [1.0, undefined],
+      'config.process[0].train.timestep_type': ['shift', 'sigmoid'],
+      'config.process[0].datasets[x].do_audio': [true, undefined],
+      'config.process[0].datasets[x].cache_latents_to_disk': [true, false],
+      'config.process[0].datasets[x].fps': [24, undefined],
+      'config.process[0].datasets[x].num_frames': [39, undefined],
+      'config.process[0].datasets[x].auto_frame_count': [true, undefined],
+    },
+    disableSections: ['network.conv'],
+    additionalSections: [
+      'sample.multi_ctrl_imgs',
+      'datasets.multi_control_paths',
+      'datasets.num_frames',
+      'model.layer_offloading',
+      'model.low_vram',
+      'datasets.do_audio',
+      'datasets.audio_normalize',
+      'datasets.audio_preserve_pitch',
+      'train.audio_loss_multiplier',
+      'datasets.auto_frame_count',
+      'model.assistant_lora_path',
+    ],
+    customModelSelectOptions: [
+      {
+        label: 'Distillation Handling Method',
+        options: [
+          { value: 'cg', label: 'Contrastive Guidance' },
+          { value: 'ta', label: 'Training Adapter' },
+          { value: 'both', label: 'Contrastive Guidance + Training Adapter (default)' },
+          { value: 'dopsd', label: 'D-OPSD' },
+          { value: 'none', label: 'None' },
+        ],
+        getValue: (config: JobConfig) => {
+          if (config?.config?.process?.[0]?.model?.model_kwargs?.dopsd) {
+            return 'dopsd';
+          }
+          const assistantLoraPath = config?.config?.process?.[0]?.model?.assistant_lora_path;
+          const hasAssistantLoraPath = assistantLoraPath && assistantLoraPath.trim() !== '';
+          const hasContrastiveGuidance = config?.config?.process?.[0]?.train?.do_guidance_loss;
+          if (hasAssistantLoraPath && hasContrastiveGuidance) {
+            return 'both';
+          }
+          if (hasAssistantLoraPath) {
+            return 'ta';
+          }
+          if (hasContrastiveGuidance) {
+            return 'cg';
+          }
+          return 'none';
+        },
+        onChange: (value: string, config: JobConfig, setJobConfig: (value: any, key: string) => void) => {
+          const kwargs = { ...(config?.config?.process?.[0]?.model?.model_kwargs ?? {}) };
+          if (value === 'dopsd') {
+            kwargs.dopsd = true;
+            kwargs.dopsd_bleed_strength = 1.0;
+          } else {
+            delete kwargs.dopsd;
+            delete kwargs.dopsd_bleed_strength;
+          }
+          setJobConfig(kwargs, 'config.process[0].model.model_kwargs');
+          if (value === 'cg') {
+            setJobConfig(true, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(undefined, 'config.process[0].model.assistant_lora_path');
+            if (!config?.config?.process?.[0]?.train?.guidance_loss_target) {
+              setJobConfig(3.5, 'config.process[0].train.guidance_loss_target');
+            }
+          } else if (value === 'ta') {
+            setJobConfig(undefined, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(undefined, 'config.process[0].train.guidance_loss_target');
+            setJobConfig(
+              'ostris/minimax_h3_training_adapter/minimax_h3_ref2va_training_adapter_v1.safetensors',
+              'config.process[0].model.assistant_lora_path',
+            );
+          } else if (value === 'both') {
+            setJobConfig(true, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(
+              'ostris/minimax_h3_training_adapter/minimax_h3_ref2va_training_adapter_v1.safetensors',
+              'config.process[0].model.assistant_lora_path',
+            );
+            if (!config?.config?.process?.[0]?.train?.guidance_loss_target) {
+              setJobConfig(3.5, 'config.process[0].train.guidance_loss_target');
+            }
+          } else if (value === 'dopsd' || value === 'none') {
+            setJobConfig(undefined, 'config.process[0].train.do_guidance_loss');
+            setJobConfig(undefined, 'config.process[0].train.guidance_loss_target');
+            setJobConfig(undefined, 'config.process[0].model.assistant_lora_path');
+          }
+        },
+        doc: {
+          title: 'MiniMax-H3 Distillation Handling',
+          description: (
+            <div>
+              MiniMax H3 is a guidance distilled model, so training on it directly will make the guidance distillation
+              break down. There are two different ways to train on this model without breaking the guidance
+              distillation: Contrastive Guidance and Training Adapter. Both have their pros and cons. The adapter is
+              faster, but will still break down over a long run. Contrastive Guidance is slower, but is less likely to
+              break down. D-OPSD instead self-distills: a no-grad teacher pass sees the training target as its own
+              reference and its prediction becomes the training target for a reference-free pass, baking the reference
+              into your trigger word (or the caption itself when no trigger word is set). Re-caches latents with pixel
+              tensors.
+            </div>
+          ),
+        },
+      },
+      {
+        label: 'Image Reference Presentation',
+        options: [
+          { value: 'picture', label: 'Picture (default)' },
+          { value: 'video', label: 'Static video clip' },
+        ],
+        getValue: (config: JobConfig) => {
+          return config?.config?.process?.[0]?.model?.model_kwargs?.image_refs_as_video ? 'video' : 'picture';
+        },
+        onChange: (value: string, config: JobConfig, setJobConfig: (value: any, key: string) => void) => {
+          const kwargs = { ...(config?.config?.process?.[0]?.model?.model_kwargs ?? {}) };
+          if (value === 'video') {
+            kwargs.image_refs_as_video = true;
+          } else {
+            delete kwargs.image_refs_as_video;
+            delete kwargs.image_ref_video_frames;
+          }
+          setJobConfig(kwargs, 'config.process[0].model.model_kwargs');
+        },
+        doc: {
+          title: 'MiniMax-H3 Image Reference Presentation',
+          description: (
+            <div className="space-y-2">
+              <p>
+                How still-image references (dataset control images and sample ctrl images) are shown to the model. Video
+                references always use the video path.
+              </p>
+              <p>
+                <strong>Picture</strong>: the native ref2va recipe — a single-frame reference block, shown to Qwen3-VL
+                as a <code>&lt;Picture i&gt;</code> block, scaled down only.
+              </p>
+              <p>
+                <strong>Static video clip</strong>: the image is held for 5 frames (2 latent frames) and routed through
+                the exact path a reference VIDEO takes — video sizing (matched to the target's pixel area), multi-frame
+                reference block, <code>&lt;Video k&gt;</code> timestamped presentation. Use this when training on image
+                references but sampling with video references, so the LoRA learns the pathway it will be used through.
+                Adds a handful of rows per reference. Frame count is adjustable with{' '}
+                <code>model_kwargs.image_ref_video_frames</code> (17n+5). Changing this re-caches text embeddings.
+              </p>
+            </div>
+          ),
+        },
+      },
+    ],
+    modelNotes: (
+      <div className="space-y-2">
+        <p>
+          Reference-to-video: control images and videos condition the output as subject/style references (never as a
+          first frame). References keep their own aspect and are matched to the target's pixel area (images scale down
+          only, never up; a same-aspect video reference is exactly the target size). Each rides into the packed sequence
+          as a reference block, and is also shown to the Qwen3-VL conditioner as a <code>&lt;Picture i&gt;</code>{' '}
+          (image) or timestamped <code>&lt;Video k&gt;</code> (video) vision block. Training references come from the
+          dataset control path(s); sampling uses the sample ctrl images — always as references. The Image Reference
+          Presentation option can route still images through the video-reference path as short static clips.
+        </p>
+        <p>
+          Weights load like MiniMax-H3 (see that arch's notes) from the{' '}
+          <Link href="/settings" className="text-blue-400 hover:underline">
+            Models Folder Path
+          </Link>
+          , using <code>diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors</code> — the ref2va partition
+          of the same release; text encoder and VAEs are shared with the fl2va arch. Everything else (pre-quantized
+          load, 24 fps, 17n+5 frame grid, guidance scale 1, single-image mode) matches MiniMax-H3.
+        </p>
+      </div>
+    ),
+  },
+  {
     name: 'ltx2',
     label: 'LTX-2',
     group: 'video',
@@ -720,7 +1148,18 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].datasets[x].auto_frame_count': [false, undefined],
     },
     disableSections: ['network.conv'],
-    additionalSections: ['sample.ctrl_img', 'datasets.num_frames', 'model.layer_offloading', 'model.low_vram', 'datasets.do_audio', 'datasets.audio_normalize', 'datasets.audio_preserve_pitch', 'datasets.do_i2v', 'train.audio_loss_multiplier', 'datasets.auto_frame_count'],
+    additionalSections: [
+      'sample.ctrl_img',
+      'datasets.num_frames',
+      'model.layer_offloading',
+      'model.low_vram',
+      'datasets.do_audio',
+      'datasets.audio_normalize',
+      'datasets.audio_preserve_pitch',
+      'datasets.do_i2v',
+      'train.audio_loss_multiplier',
+      'datasets.auto_frame_count',
+    ],
   },
   {
     name: 'ltx2.3',
@@ -748,7 +1187,62 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].datasets[x].auto_frame_count': [false, undefined],
     },
     disableSections: ['network.conv'],
-    additionalSections: ['sample.ctrl_img', 'datasets.num_frames', 'model.layer_offloading', 'model.low_vram', 'datasets.do_audio', 'datasets.audio_normalize', 'datasets.audio_preserve_pitch', 'datasets.do_i2v', 'train.audio_loss_multiplier', 'datasets.auto_frame_count'],
+    additionalSections: [
+      'sample.ctrl_img',
+      'datasets.num_frames',
+      'model.layer_offloading',
+      'model.low_vram',
+      'datasets.do_audio',
+      'datasets.audio_normalize',
+      'datasets.audio_preserve_pitch',
+      'datasets.do_i2v',
+      'train.audio_loss_multiplier',
+      'datasets.auto_frame_count',
+    ],
+  },
+  {
+    name: 'ltx2.5',
+    label: 'LTX-2.5',
+    gateUrl: 'https://huggingface.co/Lightricks/LTX-2.5',
+    group: 'video',
+    isVideoModel: true,
+    defaults: {
+      // default updates when [selected, unselected] in the UI
+      // comfy-style split files resolve from/download to the models folder;
+      // the int8 ConvRot dev transformer is the default
+      'config.process[0].model.name_or_path': ['Lightricks/LTX-2.5', defaultNameOrPath],
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.qtype': ['convrot8', 'qfloat8'],
+      'config.process[0].model.quantize_te': [true, false],
+      'config.process[0].model.qtype_te': ['convrot8', 'qfloat8'],
+      'config.process[0].model.low_vram': [true, false],
+      'config.process[0].sample.sampler': ['flowmatch', 'flowmatch'],
+      'config.process[0].train.noise_scheduler': ['flowmatch', 'flowmatch'],
+      'config.process[0].sample.num_frames': [121, 1],
+      'config.process[0].sample.fps': [24, 1],
+      'config.process[0].sample.width': [768, 1024],
+      'config.process[0].sample.height': [768, 1024],
+      'config.process[0].train.audio_loss_multiplier': [1.0, undefined],
+      'config.process[0].train.timestep_type': ['weighted', 'sigmoid'],
+      'config.process[0].datasets[x].cache_latents_to_disk': [true, false],
+      'config.process[0].datasets[x].do_i2v': [false, undefined],
+      'config.process[0].datasets[x].do_audio': [true, undefined],
+      'config.process[0].datasets[x].fps': [24, undefined],
+      'config.process[0].datasets[x].auto_frame_count': [false, undefined],
+    },
+    disableSections: ['network.conv'],
+    additionalSections: [
+      'sample.ctrl_img',
+      'datasets.num_frames',
+      'model.layer_offloading',
+      'model.low_vram',
+      'datasets.do_audio',
+      'datasets.audio_normalize',
+      'datasets.audio_preserve_pitch',
+      'datasets.do_i2v',
+      'train.audio_loss_multiplier',
+      'datasets.auto_frame_count',
+    ],
   },
   {
     name: 'flux2_klein_4b',
@@ -798,10 +1292,7 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].model.qtype': ['qfloat8', 'qfloat8'],
     },
     disableSections: ['network.conv'],
-    additionalSections: [
-      'model.low_vram',
-      'model.layer_offloading',
-    ],
+    additionalSections: ['model.low_vram', 'model.layer_offloading'],
   },
   {
     name: 'flux2_klein_9b',
@@ -841,7 +1332,10 @@ export const modelArchs: ModelArch[] = [
     group: 'audio',
     defaults: {
       // default updates when [selected, unselected] in the UI
-      'config.process[0].model.name_or_path': ['ostris/ace_step_1.5_ComfyUI_files/ace_step_1.5_xl_base_aio.safetensors', defaultNameOrPath],
+      'config.process[0].model.name_or_path': [
+        'ostris/ace_step_1.5_ComfyUI_files/ace_step_1.5_xl_base_aio.safetensors',
+        defaultNameOrPath,
+      ],
       'config.process[0].model.quantize': [true, false],
       'config.process[0].model.quantize_te': [true, false],
       'config.process[0].model.low_vram': [true, false],
@@ -852,43 +1346,201 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].sample': [defaultAudioSampleConfig, defaultSampleConfig],
     },
     sampleTags: {
-      "CAPTION": {
-        title: "Audio Prompt",
-        type: "text",
+      CAPTION: {
+        title: 'Audio Prompt',
+        type: 'text',
         full: true,
       },
-      "LYRICS": {
-        title: "Lyrics",
-        type: "multiline",
+      LYRICS: {
+        title: 'Lyrics',
+        type: 'multiline',
         full: true,
       },
-      "BPM": {
-        title: "BPM",
-        type: "number",
+      BPM: {
+        title: 'BPM',
+        type: 'number',
       },
-      "KEYSCALE": {
-        title: "Key Scale",
-        type: "text",
+      KEYSCALE: {
+        title: 'Key Scale',
+        type: 'text',
       },
-      "TIMESIGNATURE": {
-        title: "Time Signature",
-        type: "text",
+      TIMESIGNATURE: {
+        title: 'Time Signature',
+        type: 'text',
       },
-      "DURATION": {
-        title: "Duration (sec)",
-        type: "number",
+      DURATION: {
+        title: 'Duration (sec)',
+        type: 'number',
       },
-      "LANGUAGE": {
-        title: "Language",
-        type: "text",
+      LANGUAGE: {
+        title: 'Language',
+        type: 'text',
       },
     },
     disableSections: ['network.conv'],
-    additionalSections: [
-      'sample.multi_ctrl_imgs',
-      'model.low_vram',
-      'model.layer_offloading',
+    additionalSections: ['sample.multi_ctrl_imgs', 'model.low_vram', 'model.layer_offloading'],
+  },
+  {
+    name: 'qwen25_omni',
+    label: 'Qwen2.5-Omni',
+    group: 'llm',
+    defaults: {
+      // default updates when [selected, unselected] in the UI
+      'config.process[0].model.name_or_path': [
+        'ostris/qwen2_5_omni/text_encoders/qwen2_5_omni_7b_convrot8.safetensors',
+        defaultNameOrPath,
+      ],
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.quantize_te': [false, false],
+      'config.process[0].model.low_vram': [false, false],
+      // the single-file thinker ships convrot8 layers; requesting convrot8 keeps them as-is
+      'config.process[0].model.qtype': ['convrot8', 'qfloat8'],
+      'config.process[0].train.unload_text_encoder': [false, false],
+      'config.process[0].train.noise_scheduler': ['flowmatch', 'flowmatch'],
+      'config.process[0].train.batch_size': [1, 1],
+      'config.process[0].sample': [defaultQwen25OmniSampleConfig, defaultSampleConfig],
+      // media is encoded on the GPU per step; the cache is optional and large (~54 MB per 300 s of audio)
+      'config.process[0].datasets[x].cache_latents_to_disk': [false, true],
+      'config.process[0].datasets[x].resolution': [[512], [512, 768, 1024]],
+      // the caption is the training target; a blank one trains nothing
+      'config.process[0].datasets[x].caption_dropout_rate': [0, 0.05],
+      'config.process[0].model.model_kwargs': [{ instruction: 'Describe this in detail.' }, {}],
+    },
+    disableSections: [
+      'network.conv',
+      'trigger_word',
+      'train.diff_output_preservation',
+      'train.blank_prompt_preservation',
+      'train.unload_text_encoder',
+      'slider',
     ],
+    additionalSections: ['model.model_kwargs.instruction', 'sample.ctrl_img', 'datasets.num_frames'],
+    modelNotes: (
+      <div className="space-y-2">
+        <p>
+          Qwen2.5-Omni 7B thinker as a text-generating model: audio, image or video in, text out. Each dataset item is a
+          media file (mp3, wav, flac, ogg, jpg, png, webp, mp4, ...) with a caption file next to it; the caption is the
+          text the model learns to produce for that media. One dataset can mix all three kinds. Video files are used
+          when Num Frames is above 1 and are seen as frames only (no audio track).
+        </p>
+        <p>
+          The instruction in <code>model_kwargs.instruction</code> is the user turn for every training item; use the
+          same wording when captioning with the trained LoRA. Samples take a media file per prompt and write the
+          generated text as a .txt file.
+        </p>
+        <p>
+          Media is encoded by the frozen audio and vision towers on the GPU each step, so Cache Latents to Disk can stay
+          off (the cache is about 54 MB per 300 seconds of audio). Batch size is 1. The LoRA trains the text stack only.
+          Watch <code>loss/ce</code>: next-token cross-entropy on the caption.
+        </p>
+      </div>
+    ),
+  },
+  {
+    name: 'yue2',
+    label: 'YuE2',
+    group: 'audio',
+    defaults: {
+      // default updates when [selected, unselected] in the UI
+      'config.process[0].model.name_or_path': [
+        'Comfy-Org/YuE2/checkpoints/yue2_3b_int8_convrot.safetensors',
+        defaultNameOrPath,
+      ],
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.quantize_te': [false, false],
+      'config.process[0].model.low_vram': [false, false],
+      'config.process[0].train.unload_text_encoder': [false, false],
+      'config.process[0].train.noise_scheduler': ['flowmatch', 'flowmatch'],
+      'config.process[0].train.timestep_type': ['sigmoid', 'sigmoid'],
+      // the int8 repack ships convrot8 layers; requesting convrot8 keeps them as-is (no requantization)
+      'config.process[0].model.qtype': ['convrot8', 'qfloat8'],
+      'config.process[0].sample': [defaultYue2SampleConfig, defaultSampleConfig],
+      'config.process[0].datasets[x].cache_latents_to_disk': [true, true],
+      // audio has no resolution; every bucket would duplicate the whole dataset
+      'config.process[0].datasets[x].resolution': [[512], [512, 768, 1024]],
+      // blank captions break lyric following; the AR must always see the prefix
+      'config.process[0].datasets[x].caption_dropout_rate': [0, 0.05],
+      'config.process[0].model.model_kwargs': [
+        { cot: 'full', abc_dropout: 0.5, sample_ar_repetition_penalty: 1.2, ar_kl_weight: 0.2 },
+        {},
+      ],
+    },
+    // native YuE2 prompt: style text, a [Lyrics] line, the lyrics
+    hasMultiLinePrompts: true,
+    modelNotes: (
+      <div className="space-y-2">
+        <p className="font-semibold text-amber-400">
+          Experimental. The AR (composition) model memorizes quickly and does not work well on small datasets. A handful
+          of songs is enough for it to learn the exact token sequence of each song; after that it stops generalizing and
+          free-running samples drift away from the training material. Expect to need a large, varied dataset for the AR
+          side to learn a style rather than the songs themselves.
+        </p>
+        <p>
+          YuE2 is two experts on one backbone. The <b>AR expert</b> reads the style line and lyrics and writes the song
+          as a sequence of semantic codec tokens (25 per second). The <b>NAR expert</b> then renders those tokens into
+          audio latents with flow matching. Training a LoRA here trains both: next-token loss on the AR over the whole
+          song from its start, flow loss on the NAR over a random window.
+        </p>
+        <p>
+          The AR loss is the one to watch (<code>loss/ar_ce</code>). It starts near 5 and, on a small dataset, falls
+          toward 0 within a few hundred steps, which is memorization. <code>ar_kl_weight</code> in model kwargs anchors
+          the AR to the base model so it cannot collapse onto the training songs; <code>ar_lr_multiplier</code> and a
+          smaller AR rank slow it further. Style comes mostly from the NAR, lyric following from the AR. Do not use
+          caption dropout: a blank prompt breaks lyric following.
+        </p>
+        <p>
+          The official audio-to-token encoder is unreleased. Training uses the community tokenizer by Kytra (
+          <a
+            href="https://x.com/sin_ceriously"
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-400 hover:underline"
+          >
+            @sin_ceriously
+          </a>
+          ), a MERT-v2-FullSong head that maps real audio to YuE2 codec tokens:{' '}
+          <a
+            href="https://huggingface.co/Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4"
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-400 hover:underline"
+          >
+            Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4
+          </a>
+          . It is downloaded on first use. Its tokens are an approximation of the model's own, so rendered samples will
+          not be bit-faithful to the training audio even when the AR replays a song exactly. Though it is extremely
+          close.
+        </p>
+        <p>
+          <b>ABC generation.</b> Generation is two stages: the AR first writes a lead sheet of the whole song in ABC
+          notation (sections, chords, vocal and instrumental melody), then writes the codec tokens conditioned on that
+          sheet. It can also run without a sheet ("off" mode), which uses a different instruction line. Samples here do
+          the two stages with <code>cot: full</code> (chords) or <code>cot: melody</code> (melody only), or the single
+          stage with <code>cot: off</code>.
+        </p>
+        <p>
+          <b>Training for both.</b> Every song is transcribed to an ABC sheet with SheetSage2 and the AR is trained on
+          lyrics to sheet and sheet to tokens. <code>abc_dropout</code> (default 0.5) is the fraction of training items
+          fed without the sheet instead, as an off-mode prompt, so one LoRA works in both modes. Set it to 0 to train
+          the sheet path only, or 1 to train off mode only.
+        </p>
+        <p>
+          <b>Caching is required.</b> The sheet is produced at latent-cache time and stored with the latents and codec
+          tokens, so Cache Latents to Disk must stay on: without it, SheetSage2 (about 12 s per song), the MERT
+          tokenizer and the VAE would run again on every training step. The cache records which mode built it; changing{' '}
+          <code>cot</code> means deleting the dataset's <code>_latent_cache</code> folder so the sheets are rebuilt.
+          Audio has no resolution, so keep a single resolution bucket per dataset or every bucket duplicates the songs.
+        </p>
+        <p>
+          Prompt format: a style line, then <code>[Lyrics]</code>, then the lyrics with bracketed section headers such
+          as <code>[Verse 1]</code> and <code>[Chorus]</code>. The Qwen3-Omni captioner has a YuE2 preset that writes
+          captions in this layout. Sample length is set by the Duration field in the sample section.
+        </p>
+      </div>
+    ),
+    // no separate text encoder: the prompt side is the AR expert, covered by the transformer quantization
+    disableSections: ['network.conv', 'model.quantize_te'],
+    additionalSections: ['model.low_vram', 'sample.duration'],
   },
   {
     name: 'ace_step_15',
@@ -896,7 +1548,10 @@ export const modelArchs: ModelArch[] = [
     group: 'audio',
     defaults: {
       // default updates when [selected, unselected] in the UI
-      'config.process[0].model.name_or_path': ['ostris/ace_step_1.5_ComfyUI_files/ace_step_1.5_base_aio.safetensors', defaultNameOrPath],
+      'config.process[0].model.name_or_path': [
+        'ostris/ace_step_1.5_ComfyUI_files/ace_step_1.5_base_aio.safetensors',
+        defaultNameOrPath,
+      ],
       'config.process[0].model.quantize': [true, false],
       'config.process[0].model.quantize_te': [true, false],
       'config.process[0].model.low_vram': [true, false],
@@ -907,43 +1562,39 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].sample': [defaultAudioSampleConfig, defaultSampleConfig],
     },
     sampleTags: {
-      "CAPTION": {
-        title: "Audio Prompt",
-        type: "text",
+      CAPTION: {
+        title: 'Audio Prompt',
+        type: 'text',
         full: true,
       },
-      "LYRICS": {
-        title: "Lyrics",
-        type: "multiline",
+      LYRICS: {
+        title: 'Lyrics',
+        type: 'multiline',
         full: true,
       },
-      "BPM": {
-        title: "BPM",
-        type: "number",
+      BPM: {
+        title: 'BPM',
+        type: 'number',
       },
-      "KEYSCALE": {
-        title: "Key Scale",
-        type: "text",
+      KEYSCALE: {
+        title: 'Key Scale',
+        type: 'text',
       },
-      "TIMESIGNATURE": {
-        title: "Time Signature",
-        type: "text",
+      TIMESIGNATURE: {
+        title: 'Time Signature',
+        type: 'text',
       },
-      "DURATION": {
-        title: "Duration (sec)",
-        type: "number",
+      DURATION: {
+        title: 'Duration (sec)',
+        type: 'number',
       },
-      "LANGUAGE": {
-        title: "Language",
-        type: "text",
+      LANGUAGE: {
+        title: 'Language',
+        type: 'text',
       },
     },
     disableSections: ['network.conv'],
-    additionalSections: [
-      'sample.multi_ctrl_imgs',
-      'model.low_vram',
-      'model.layer_offloading',
-    ],
+    additionalSections: ['sample.multi_ctrl_imgs', 'model.low_vram', 'model.layer_offloading'],
   },
   {
     name: 'nucleus_image',
@@ -969,7 +1620,7 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].model.name_or_path': ['HiDream-ai/HiDream-O1-Image', defaultNameOrPath],
       'config.process[0].model.quantize': [true, false],
       'config.process[0].model.quantize_te': [false, false],
-      'config.process[0].train.timestep_type': ['linear', 'sigmoid'],
+      'config.process[0].train.timestep_type': ['weighted', 'sigmoid'],
       'config.process[0].network.conv': [undefined, 16],
       'config.process[0].network.conv_alpha': [undefined, 16],
       'config.process[0].train.max_loss': [1.0, undefined],
@@ -985,15 +1636,8 @@ export const modelArchs: ModelArch[] = [
         {},
       ],
     },
-    disableSections: [
-      'network.conv',
-      'model.quantize_te',
-      'train.unload_text_encoder',
-    ],
-    additionalSections: [
-      'model.low_vram',
-      'model.layer_offloading',
-    ],
+    disableSections: ['network.conv', 'model.quantize_te', 'train.unload_text_encoder'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading'],
   },
   {
     name: 'zimage_l2p',
@@ -1009,13 +1653,8 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].network.conv_alpha': [undefined, 16],
       'config.process[0].model.low_vram': [true, false],
     },
-    disableSections: [
-      'network.conv',
-    ],
-    additionalSections: [
-      'model.low_vram',
-      'model.layer_offloading',
-    ],
+    disableSections: ['network.conv'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading'],
   },
   {
     name: 'ideogram4',
@@ -1035,9 +1674,7 @@ export const modelArchs: ModelArch[] = [
         undefined,
       ],
     },
-    disableSections: [
-      'network.conv',
-    ],
+    disableSections: ['network.conv'],
     additionalSections: [
       'model.low_vram',
       'model.layer_offloading',
@@ -1060,13 +1697,8 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].network.conv_alpha': [undefined, 16],
       'config.process[0].model.low_vram': [true, false],
     },
-    disableSections: [
-      'network.conv',
-    ],
-    additionalSections: [
-      'model.low_vram',
-      'model.layer_offloading',
-    ],
+    disableSections: ['network.conv'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading'],
   },
   {
     name: 'krea2',
@@ -1082,17 +1714,13 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].network.conv_alpha': [undefined, 16],
       'config.process[0].model.low_vram': [true, false],
     },
-    disableSections: [
-      'network.conv',
-    ],
-    additionalSections: [
-      'model.low_vram',
-      'model.layer_offloading',
-    ],
+    disableSections: ['network.conv'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading'],
   },
   {
     name: 'krea2:turbo',
     label: 'Krea 2 Turbo (w/ Training Adapter)',
+    generateNameOverride: 'Krea 2 Turbo',
     group: 'image',
     gateUrl: 'https://huggingface.co/krea/Krea-2-Turbo',
     defaults: {
@@ -1110,14 +1738,8 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].sample.guidance_scale': [1, 4],
       'config.process[0].sample.sample_steps': [9, 25],
     },
-    disableSections: [
-      'network.conv',
-    ],
-    additionalSections: [
-      'model.low_vram',
-      'model.layer_offloading',
-      'model.assistant_lora_path',
-    ],
+    disableSections: ['network.conv'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading', 'model.assistant_lora_path'],
   },
   {
     name: 'krea2:o_edit',
@@ -1142,9 +1764,7 @@ export const modelArchs: ModelArch[] = [
         {},
       ],
     },
-    disableSections: [
-      'network.conv', 'train.unload_text_encoder'
-    ],
+    disableSections: ['network.conv', 'train.unload_text_encoder'],
     additionalSections: [
       'datasets.multi_control_paths',
       'sample.multi_ctrl_imgs',
@@ -1157,6 +1777,7 @@ export const modelArchs: ModelArch[] = [
   {
     name: 'krea2:o_edit_turbo',
     label: 'Krea 2 Turbo (w/ Training Adapter) [Edit Training]',
+    generateNameOverride: 'Krea 2 Turbo (Edit)',
     gateUrl: 'https://huggingface.co/krea/Krea-2-Turbo',
     group: 'experimental',
     defaults: {
@@ -1183,9 +1804,7 @@ export const modelArchs: ModelArch[] = [
         {},
       ],
     },
-    disableSections: [
-      'network.conv', 'train.unload_text_encoder'
-    ],
+    disableSections: ['network.conv', 'train.unload_text_encoder'],
     additionalSections: [
       'datasets.multi_control_paths',
       'sample.multi_ctrl_imgs',
@@ -1194,6 +1813,48 @@ export const modelArchs: ModelArch[] = [
       'model.assistant_lora_path',
       'model.qie.match_target_res',
       'model.model_kwargs.kv_cache',
+    ],
+  },
+  {
+    name: 'mageflow',
+    label: 'Mage-Flow',
+    group: 'image',
+    defaults: {
+      'config.process[0].model.name_or_path': ['microsoft/Mage-Flow-Base', defaultNameOrPath],
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.quantize_te': [true, false],
+      'config.process[0].train.timestep_type': ['linear', 'sigmoid'],
+      'config.process[0].network.conv': [undefined, 16],
+      'config.process[0].network.conv_alpha': [undefined, 16],
+      'config.process[0].model.low_vram': [true, false],
+      'config.process[0].sample.guidance_scale': [4, 4],
+      'config.process[0].sample.sample_steps': [25, 25],
+    },
+    disableSections: ['network.conv'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading'],
+  },
+  {
+    name: 'mageflow_edit',
+    label: 'Mage-Flow Edit',
+    group: 'instruction',
+    defaults: {
+      'config.process[0].model.name_or_path': ['microsoft/Mage-Flow-Edit-Base', defaultNameOrPath],
+      'config.process[0].model.quantize': [true, false],
+      'config.process[0].model.quantize_te': [true, false],
+      'config.process[0].train.timestep_type': ['linear', 'sigmoid'],
+      'config.process[0].network.conv': [undefined, 16],
+      'config.process[0].network.conv_alpha': [undefined, 16],
+      'config.process[0].model.low_vram': [true, false],
+      'config.process[0].sample.guidance_scale': [4, 4],
+      'config.process[0].sample.sample_steps': [25, 25],
+      'config.process[0].train.unload_text_encoder': [false, false],
+    },
+    disableSections: ['network.conv', 'train.unload_text_encoder'],
+    additionalSections: [
+      'datasets.multi_control_paths',
+      'sample.multi_ctrl_imgs',
+      'model.low_vram',
+      'model.layer_offloading',
     ],
   },
   {
@@ -1209,13 +1870,8 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].network.conv_alpha': [undefined, 16],
       'config.process[0].model.low_vram': [true, false],
     },
-    disableSections: [
-      'network.conv',
-    ],
-    additionalSections: [
-      'model.low_vram',
-      'model.layer_offloading',
-    ],
+    disableSections: ['network.conv'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading'],
   },
   {
     name: 'boogu_image_edit',
@@ -1237,9 +1893,7 @@ export const modelArchs: ModelArch[] = [
         {},
       ],
     },
-    disableSections: [
-      'network.conv', 'train.unload_text_encoder',
-    ],
+    disableSections: ['network.conv', 'train.unload_text_encoder'],
     additionalSections: [
       'datasets.multi_control_paths',
       'sample.multi_ctrl_imgs',
@@ -1272,6 +1926,7 @@ export const quantizationOptions: SelectOption[] = [
   { value: 'float8', label: 'float8' },
   { value: 'convrot8', label: '8bit convrot' },
   { value: 'convrot4', label: '4bit convrot (nvfp4)' },
+  { value: 'nvfp4', label: 'nvfp4 (4bit weight only)' },
   { value: 'convrotint7', label: '7bit convrot' },
   { value: 'convrotint6', label: '6bit convrot' },
   { value: 'convrotint5', label: '5bit convrot' },
@@ -1318,3 +1973,69 @@ export const jobTypeOptions: JobTypeOption[] = [
     },
   },
 ];
+
+const MODEL_PREFIX = 'config.process[0].model.';
+const SAMPLE_PREFIX = 'config.process[0].sample';
+// training-only model settings: the training adapter (e.g. Z-Image Turbo's
+// de-distill LoRA) and the unconditional LoRA must not load for inference
+const TRAINING_ONLY_MODEL_KEYS = new Set(['assistant_lora_path', 'unconditional_lora_path', 'inference_lora_path']);
+
+/** What the Generate page sends the inference engine for an arch: ModelConfig
+ * kwargs + GenerateImageConfig kwargs, derived from the training defaults. */
+export const getGenerateDefaults = (arch: ModelArch): GenerateDefaults => {
+  const defaults = arch.defaults || {};
+  const model: { [key: string]: any } = {};
+  const sample: { [key: string]: any } = { width: 1024, height: 1024, num_inference_steps: 25, guidance_scale: 4 };
+  for (const [key, pair] of Object.entries(defaults)) {
+    const value = Array.isArray(pair) ? pair[0] : pair;
+    if (key.startsWith(MODEL_PREFIX)) {
+      const field = key.slice(MODEL_PREFIX.length);
+      if (value === '' || value === undefined || value === null) continue;
+      if (field.includes('.')) continue; // nested model_kwargs etc.
+      if (TRAINING_ONLY_MODEL_KEYS.has(field)) continue;
+      model[field] = value;
+    } else if (key === SAMPLE_PREFIX && value && typeof value === 'object') {
+      // whole SampleConfig object (audio models)
+      const sc = value as any;
+      if (sc.width) sample.width = sc.width;
+      if (sc.height) sample.height = sc.height;
+      if (sc.sample_steps) sample.num_inference_steps = sc.sample_steps;
+      if (sc.guidance_scale !== undefined) sample.guidance_scale = sc.guidance_scale;
+      if (sc.num_frames) sample.num_frames = sc.num_frames;
+      if (sc.fps) sample.fps = sc.fps;
+      if (sc.duration) sample.duration = sc.duration;
+      if (sc.neg) sample.negative_prompt = sc.neg;
+    } else if (key.startsWith(SAMPLE_PREFIX + '.')) {
+      const field = key.slice(SAMPLE_PREFIX.length + 1);
+      if (value === undefined || value === null || value === '') continue;
+      if (field === 'sample_steps') sample.num_inference_steps = value;
+      else if (field === 'neg') sample.negative_prompt = value;
+      else if (['width', 'height', 'guidance_scale', 'num_frames', 'fps', 'duration'].includes(field))
+        sample[field] = value;
+    }
+  }
+  // the engine defaults to convrot8; the training default qtype is the
+  // quanto one, which is the slower inference choice
+  if (model.quantize && (!model.qtype || model.qtype === 'qfloat8')) model.qtype = 'convrot8';
+  if (model.quantize_te && (!model.qtype_te || model.qtype_te === 'qfloat8')) model.qtype_te = 'convrot8';
+  const sections = arch.additionalSections || [];
+  const gen = arch.generate || {};
+  const modality: GenerateModality =
+    gen.modality || (arch.group === 'audio' ? 'audio' : arch.isVideoModel ? 'video' : 'image');
+  if (modality !== 'video') {
+    delete sample.num_frames;
+    delete sample.fps;
+  }
+  return {
+    arch: arch.name,
+    label: arch.generateNameOverride || arch.label,
+    group: arch.group,
+    modality,
+    model: { ...model, ...(gen.model || {}) },
+    sample: { ...sample, ...(gen.sample || {}) },
+    needsControlImage:
+      gen.needsControlImage ?? (sections.includes('sample.ctrl_img') || sections.includes('sample.multi_ctrl_imgs')),
+    sizeLocked: gen.sizeLocked ?? false,
+    sampleTags: arch.sampleTags,
+  };
+};
