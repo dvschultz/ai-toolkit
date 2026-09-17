@@ -191,7 +191,11 @@ aitk_db.db-wal
 aitk_db.db-shm
 /notes.md
 /data
-.claude
+# Claude Code: local state stays out of git, but the skills/ symlinks ship with
+# the repo so a fresh clone has the training skills discoverable. The skills
+# themselves live in the top-level skills/ dir; these are relative symlinks.
+.claude/*
+!.claude/skills
 runs/
 
 # Model briefs are private like configs: artist intent, dream prompts,

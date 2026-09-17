@@ -6,22 +6,34 @@ through captioning, remote-GPU training on RunPod, and checkpoint review.
 Each `<name>/SKILL.md` is a self-contained skill; some carry a `references/`
 dir with deeper material.
 
-## Activating them
+## Activating them — nothing to do
 
-Claude Code auto-discovers skills from `.claude/skills/` (which is
-gitignored), not from this tracked `skills/` dir. To make these active in a
-clone, symlink (recommended — edits stay in sync with git) or copy each one:
+Claude Code discovers skills from `.claude/skills/`, not from this tracked
+`skills/` dir. Those entries are **relative symlinks back into `skills/`, and
+they are committed**, so a fresh clone has every skill active immediately:
+open Claude Code in the repo and they trigger by name or by their
+`description` triggers. Everything else under `.claude/` (local settings,
+worktrees) stays gitignored.
 
-```bash
-mkdir -p .claude/skills
-for s in skills/*/; do
-  name=$(basename "$s")
-  ln -sfn "../../skills/$name" ".claude/skills/$name"
-done
-```
+Two consequences worth knowing:
 
-Then start (or restart) Claude Code in the repo and the skills trigger by
-name or by their `description` triggers.
+- **Author in `skills/<name>/`, never in `.claude/skills/<name>/`.** The
+  latter is a link to the former; a real directory placed there is invisible
+  to git and drifts out of the repo.
+- **A new skill needs its link committed too**, or it ships to a clone
+  inactive:
+
+  ```bash
+  ln -s "../../skills/<name>" ".claude/skills/<name>"
+  git add ".claude/skills/<name>"
+  ```
+
+  A newly added link is picked up at the **next** Claude Code start — the
+  skill registry is scanned once at launch.
+
+On Windows, `git clone` only materializes symlinks with `core.symlinks=true`
+(and Developer Mode); otherwise copy `skills/*` into `.claude/skills/`
+instead.
 
 ## The workflow
 
@@ -40,10 +52,13 @@ name or by their `description` triggers.
 | Review | `ai-toolkit-sample-reviewer` | "review my samples / pick a checkpoint" |
 
 \* `dop-class-advisor` is a parameter-specific helper; the rest form the
-universal path. Model-specific config skills like `flux2-klein-lora-config`
-are **not bundled here** — they live in the maintainer's global
-`~/.claude/skills/`; `ai-toolkit-lora-config` covers config generation for
-all models in this set.
+universal path. Also bundled: `video-lora-dataset-prep` (clip prep and frame
+math for video LoRAs — Wan2.2, MiniMax-H3), `ai-toolkit-fal-inference` (deploy
+validation on fal's hosted endpoints), `synthetic-control-pair-qa`, and
+`style-lora-content-uniformity-caption-inversion`. Model-specific *prompting*
+skills (e.g. `flux2-klein-prompter`) are not bundled — they are not part of the
+training path; `ai-toolkit-lora-config` covers config generation for all models
+in this set.
 
 The three **remote** skills wrap `scripts/remote/cli.py` (the hosted-GPU
 pipeline — see `scripts/remote/README.md`). The remaining skills are
