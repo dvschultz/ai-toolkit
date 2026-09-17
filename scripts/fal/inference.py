@@ -84,6 +84,18 @@ BASES = {
         "supports_negative": True, "supports_guidance_steps": True,
         "label": "FLUX.2 Klein 9B base",
     },
+    "klein-9b-base-edit": {
+        # FLUX.2 Klein 9B BASE image-to-image (edit/restyle) LoRA endpoint —
+        # "specialized for style transfer". Same base as klein-9b (trained on
+        # FLUX.2-klein-base-9B) but takes input image(s) via `image_urls` and
+        # restyles them. This is the deploy path for ctrl_img restyle LoRAs.
+        # Requires --image; each input image is restyled by the prompt+LoRA.
+        "endpoint": "fal-ai/flux-2/klein/9b/base/edit/lora",
+        "guidance": 5.0, "steps": 28, "image_size": "landscape_4_3", "scale": 1.4,
+        "supports_negative": True, "supports_guidance_steps": True,
+        "is_edit": True,
+        "label": "FLUX.2 Klein 9B base EDIT (image-to-image)",
+    },
     "krea2-turbo": {
         # Krea2 LoRAs train on Krea-2-Raw but DEPLOY here, on Krea-2-Turbo.
         # The turbo (distilled) schema has NO guidance_scale / num_inference_steps /
@@ -107,6 +119,21 @@ BASES = {
         "guidance": 2.5, "steps": 28, "image_size": "landscape_4_3", "scale": 1.0,
         "supports_negative": False, "supports_guidance_steps": True,
         "label": "FLUX.2 [dev]",
+    },
+    "ideogram-v4": {
+        # Ideogram 4 LoRA endpoint (ai-toolkit arch: ideogram4). Plain-text
+        # prompts; the endpoint's expansion_model ("None"/"Medium"/"Large")
+        # runs Ideogram's server-side Magic Prompt — "Large" upsamples plain
+        # text toward the structured-JSON conditioning the base was trained
+        # on. Use "None" to test the LoRA's raw behavior (matches training
+        # samples), "Medium"/"Large" to test the real deploy path. No
+        # guidance/steps knobs — rendering_speed instead. scale 1.0 is an
+        # uncalibrated starting point: sweep per-LoRA.
+        "endpoint": "ideogram/v4/lora",
+        "guidance": None, "steps": None, "image_size": "landscape_16_9", "scale": 1.0,
+        "supports_negative": False, "supports_guidance_steps": False,
+        "extra": {"expansion_model": "None", "rendering_speed": "BALANCED"},
+        "label": "Ideogram V4 LoRA",
     },
 }
 DEFAULT_BASE = "klein-9b"  # back-compat: existing invocations keep Klein behavior
@@ -181,7 +208,8 @@ def submit_one(*, endpoint: str, lora_url: str, lora_scale: float, prompt: str,
                negative: str, seed: int, image_size, guidance: float, steps: int,
                acceleration: str, enable_safety_checker: bool = True,
                supports_negative: bool = True,
-               supports_guidance_steps: bool = True) -> dict:
+               supports_guidance_steps: bool = True,
+               extra_payload: dict | None = None) -> dict:
     """Submit one inference job and return the result dict (fal response).
 
     Both supported endpoints (Klein 9B base, Flux.2-dev) are flux-2-family LoRA
@@ -214,6 +242,8 @@ def submit_one(*, endpoint: str, lora_url: str, lora_scale: float, prompt: str,
         payload["num_inference_steps"] = steps
     if supports_negative and negative:
         payload["negative_prompt"] = negative
+    if extra_payload:
+        payload.update(extra_payload)
     handler = fal_client.submit(endpoint, arguments=payload)
     return handler.get()
 
@@ -251,6 +281,12 @@ def main():
     ap.add_argument("--lora", action="append", required=True,
                     help="LoRA in 'label:path' form. Repeat to A/B multiple. "
                          "Up to 3 per call (fal API limit per request).")
+    ap.add_argument("--image", action="append", default=None,
+                    help="Input image in 'label:path' form for EDIT/restyle bases "
+                         "(e.g. --base klein-9b-base-edit). Repeat for multiple "
+                         "control images; each is restyled by every (lora × prompt × "
+                         "seed). Uploaded to fal storage (hash-cached). Required for "
+                         "edit bases; ignored by text-to-image bases.")
     ap.add_argument("--scale", type=float, default=None,
                     help="LoRA scale (strength). Applied to ALL --lora entries. "
                          "Default is the chosen --base's scale (1.4; calibrated higher "
@@ -298,6 +334,10 @@ def main():
     ap.add_argument("--acceleration", default="regular",
                     choices=["none", "regular", "high"],
                     help="fal acceleration tier. Default 'regular'.")
+    ap.add_argument("--expansion", default=None,
+                    help="Ideogram-v4 only: override expansion_model "
+                         "(None/Basic/Medium/Large — the endpoint's Magic-Prompt "
+                         "expander). Default keeps the base's value ('None' = raw).")
     ap.add_argument("--disable-safety-checker", action="store_true",
                     help="Disable fal's NSFW safety checker. The checker returns a "
                          "SOLID BLACK image (not an error) when it flags a render; "
@@ -337,6 +377,19 @@ def main():
         print("Provide at least one --lora", file=sys.stderr)
         sys.exit(1)
 
+    # Parse input images (edit/restyle bases). parse_lora_arg handles label:path.
+    is_edit = base.get("is_edit", False)
+    images: list[tuple[str, Path]] = [parse_lora_arg(s) for s in (args.image or [])]
+    if is_edit and not images:
+        print(f"Base '{args.base}' is an edit endpoint — provide --image label:path "
+              "(the control image to restyle).", file=sys.stderr)
+        sys.exit(1)
+    if images and not is_edit:
+        print(f"Note: --image given but base '{args.base}' is text-to-image; images "
+              "will be ignored. Use --base klein-9b-base-edit to restyle them.",
+              file=sys.stderr)
+        images = []
+
     # Parse image_size: support "WxH" → object, otherwise pass through as preset
     def parse_image_size(s):
         if "x" in s.lower():
@@ -375,30 +428,44 @@ def main():
         lora_urls[label] = upload_lora(path, label, cache)
     print()
 
+    # Upload control images for edit bases (same hash-cached uploader).
+    image_urls: dict[str, str] = {}  # label -> url
+    if images:
+        print(f"Uploading {len(images)} control image(s) to fal storage:")
+        for label, path in images:
+            image_urls[label] = upload_lora(path, label, cache)
+        print()
+
     # Build the full job matrix: every (lora × prompt × seed × scale) combination.
     # --scale-sweep overrides --scale and adds an extra axis; the lora label gets a
     # "_scale_<n>" suffix so per-scale outputs land in separate folders.
     scales = args.scale_sweep if args.scale_sweep else [args.scale]
+    # Image axis: one entry per control image for edit bases, else a single
+    # no-image placeholder so text-to-image behavior is unchanged.
+    img_items = images if images else [(None, None)]
     jobs = []
     for label, _ in loras:
         for scale in scales:
             effective_label = f"{label}_scale_{scale}" if len(scales) > 1 else label
-            for p_idx, prompt in enumerate(args.prompt):
-                # Per-LoRA-per-prompt fresh seeds in capability mode; shared seeds
-                # in pinned-A/B mode.
-                effective_seeds = (
-                    [random.randint(0, 2**31 - 1) for _ in range(args.per_lora_num_seeds)]
-                    if capability_mode else seeds
-                )
-                for seed in effective_seeds:
-                    jobs.append({
-                        "label": effective_label,
-                        "lora_url": lora_urls[label],
-                        "scale": scale,
-                        "p_idx": p_idx,
-                        "prompt": prompt,
-                        "seed": seed,
-                    })
+            for img_label, _ in img_items:
+                for p_idx, prompt in enumerate(args.prompt):
+                    # Per-LoRA-per-prompt fresh seeds in capability mode; shared seeds
+                    # in pinned-A/B mode.
+                    effective_seeds = (
+                        [random.randint(0, 2**31 - 1) for _ in range(args.per_lora_num_seeds)]
+                        if capability_mode else seeds
+                    )
+                    for seed in effective_seeds:
+                        jobs.append({
+                            "label": effective_label,
+                            "lora_url": lora_urls[label],
+                            "scale": scale,
+                            "img_label": img_label,
+                            "img_url": image_urls.get(img_label) if img_label else None,
+                            "p_idx": p_idx,
+                            "prompt": prompt,
+                            "seed": seed,
+                        })
 
     sweep_note = f"  |  scales: {scales}" if len(scales) > 1 else f"  |  scale: {args.scale}"
     seed_note = (
@@ -424,6 +491,8 @@ def main():
         "negative_prompt": args.negative_prompt,
         "loras": [{"label": label, "local_path": str(path), "url": lora_urls[label]}
                   for label, path in loras],
+        "images": [{"label": label, "local_path": str(path), "url": image_urls[label]}
+                   for label, path in images],
         "prompts": list(args.prompt),
         "seed_mode": "capability" if capability_mode else "pinned_ab",
         "seeds": seeds,
@@ -436,6 +505,12 @@ def main():
     errors = []
     def run_one(job):
         try:
+            # Merge base extra payload with per-job control image (edit bases).
+            extra = dict(base.get("extra") or {})
+            if args.expansion is not None and "expansion_model" in extra:
+                extra["expansion_model"] = args.expansion
+            if job.get("img_url"):
+                extra["image_urls"] = [job["img_url"]]
             resp = submit_one(
                 endpoint=endpoint,
                 lora_url=job["lora_url"], lora_scale=job["scale"],
@@ -446,9 +521,12 @@ def main():
                 enable_safety_checker=not args.disable_safety_checker,
                 supports_negative=base.get("supports_negative", True),
                 supports_guidance_steps=base.get("supports_guidance_steps", True),
+                extra_payload=extra or None,
             )
             img_url = resp["images"][0]["url"]
-            dest = out_root / job["label"] / f"p{job['p_idx']}_s{job['seed']}.png"
+            # Include control-image label in the filename so restyles don't collide.
+            prefix = f"img{job['img_label']}_" if job.get("img_label") else ""
+            dest = out_root / job["label"] / f"{prefix}p{job['p_idx']}_s{job['seed']}.png"
             download_image(img_url, dest)
             return {**job, "image_url": img_url, "local_path": str(dest),
                     "actual_seed": resp.get("seed"), "timings": resp.get("timings", {})}
@@ -465,12 +543,13 @@ def main():
             label = res["label"]
             p_idx = res["p_idx"]
             seed = res["seed"]
+            imgtag = f" img={res['img_label']}" if res.get("img_label") else ""
             if "error" in res:
                 errors.append(res)
-                print(f"  [{done:>3}/{len(jobs)}] ✗ {label} p{p_idx} s{seed} sc{res['scale']}: {res['error']}")
+                print(f"  [{done:>3}/{len(jobs)}] ✗ {label}{imgtag} p{p_idx} s{seed} sc{res['scale']}: {res['error']}")
             else:
                 results.append(res)
-                print(f"  [{done:>3}/{len(jobs)}] ✓ {label} p{p_idx} s{seed} sc{res['scale']} -> {res['local_path']}")
+                print(f"  [{done:>3}/{len(jobs)}] ✓ {label}{imgtag} p{p_idx} s{seed} sc{res['scale']} -> {res['local_path']}")
 
     manifest["results"] = results
     manifest["errors"] = errors

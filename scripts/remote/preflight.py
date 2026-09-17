@@ -36,13 +36,22 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 
 CONFIG_EXTENSIONS = ['.json', '.jsonc', '.yaml', '.yml']
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp'}
+# Video datasets are trainable media too (Wan, LTX-2, MiniMax-H3 ...). Without
+# these the scan counts zero media in a clip folder and preflight rejects every
+# video LoRA as an empty dataset.
+VIDEO_EXTS = {'.mp4', '.mov', '.mkv', '.webm', '.m4v', '.avi'}
+MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
 
 # Inline sample-prompt flag, per the SampleItem prompt grammar in
 # toolkit/config_modules.py (prompt.split('--'); content runs to next flag).
 INLINE_CTRL_IMG_RE = re.compile(r"(--ctrl_img\s+)(.+?)(?=\s+--|\s*$)")
 
 # Bare HF hub id: org/name, exactly one slash, no path-ish prefix.
-HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][\w.-]*/[\w.-]+$")
+# owner/repo, plus the owner/repo/file.safetensors form that assistant
+# (training-adapter) weights use -- see MinimaxH3Model.load_training_adapter,
+# which resolves exactly that 3-segment shape and downloads it on the pod.
+# Two segments only meant every H3 run failed preflight on its adapter path.
+HF_REPO_ID_RE = re.compile(r"^[A-Za-z0-9][\w.-]*/[\w.-]+(?:/[\w.-]+)?$")
 
 # Fixes yaml not loading bare exponents (1e-4) as floats — same resolver as
 # toolkit/config.py, on a subclass so the global SafeLoader is not mutated.
@@ -116,6 +125,7 @@ PROMPT_STRING_PATTERNS = [
 class DatasetReport:
     folder: str
     image_count: int = 0
+    video_count: int = 0
     caption_count: int = 0
     uncaptioned: list = field(default_factory=list)   # stems missing .txt
     excluded: list = field(default_factory=list)      # rel paths transport will skip
@@ -396,6 +406,52 @@ PUSH_TO_HUB_WARNING = (
 )
 
 
+# EMA correctness guard. Upstream 4a41f14 (2026-09-09) flipped the EMA update
+# sign (shadow moved AWAY from the params by (1-decay) per step), which makes
+# every sampled image and every saved checkpoint diverge into noise while the
+# training loss stays perfectly healthy — a silently wasted multi-hour run
+# (decker_protocolized_krea2_v1, 2026-09-14). The local fork fixes it; a future
+# upstream merge would revert it just as silently, so verify the code we are
+# about to ship whenever the run actually uses EMA. Source-level on purpose:
+# preflight must stay dependency-free (no torch on the laptop).
+EMA_SOURCE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "toolkit", "ema.py")
+EMA_CORRECT = "s_param_float.sub_(gap * one_minus_decay)"
+EMA_BROKEN = "s_param_float.add_(gap * one_minus_decay)"
+
+
+def check_ema_implementation(process: dict, prefix: str):
+    """Refuse to launch an EMA run on a trainer whose EMA update is inverted."""
+    ema_config = _get_in(process, 'train', 'ema_config') or {}
+    if not ema_config.get('use_ema'):
+        return
+    try:
+        with open(EMA_SOURCE, 'r', encoding='utf-8') as fh:
+            src = fh.read()
+    except OSError as e:
+        raise PreflightError(
+            f"{prefix}.train.ema_config.use_ema is true but {EMA_SOURCE} "
+            f"could not be read to verify the EMA update ({e})") from None
+    if EMA_CORRECT in src:
+        return
+    if EMA_BROKEN in src:
+        raise PreflightError(
+            f"{prefix}.train.ema_config.use_ema is true, but toolkit/ema.py "
+            f"has the INVERTED upstream EMA update ('{EMA_BROKEN}').\n"
+            "The shadow weights diverge while the loss looks healthy, so every "
+            "sample and checkpoint this run saves will be noise.\n"
+            f"Fix: change that line to '{EMA_CORRECT}' in toolkit/ema.py "
+            "(it was almost certainly reverted by an upstream merge), or set "
+            "use_ema: false.")
+    raise PreflightError(
+        f"{prefix}.train.ema_config.use_ema is true, but the EMA update in "
+        f"{EMA_SOURCE} matches neither the known-good nor the known-broken "
+        "form — upstream changed the implementation. Read it and confirm the "
+        "shadow moves TOWARD the params before spending GPU hours, then "
+        "update EMA_CORRECT in this file.")
+
+
 def enforce_invariants(process: dict, prefix: str, changes: list, warnings: list):
     logging_block = process.get('logging')
     if not isinstance(logging_block, dict):
@@ -485,6 +541,9 @@ def scan_dataset(folder: str, check_captions: bool = True) -> DatasetReport:
             if ext.lower() in IMAGE_EXTS:
                 report.image_count += 1
                 image_stems.add(stem)
+            elif ext.lower() in VIDEO_EXTS:
+                report.video_count += 1
+                image_stems.add(stem)
             elif ext.lower() == '.txt':
                 report.caption_count += 1
                 caption_stems.add(stem)
@@ -563,6 +622,7 @@ def run_preflight(config_path: str, run_name: str = None, base_dir: str = ".",
         prefix = f"config.process[{i}]"
         remapper.apply(process, prefix)
         enforce_invariants(process, prefix, remapper.changes, warnings)
+        check_ema_implementation(process, prefix)
     changes = remapper.changes
 
     # closing generic sweep over the whole derived config (R3 backstop)
@@ -579,20 +639,21 @@ def run_preflight(config_path: str, run_name: str = None, base_dir: str = ".",
     for dotted, local_abs, is_caption_dataset in remapper.dataset_dirs:
         report = scan_dataset(local_abs, check_captions=is_caption_dataset)
         dataset_reports.append(report)
-        if is_caption_dataset and report.image_count == 0:
+        if is_caption_dataset and report.image_count + report.video_count == 0:
             raise PreflightError(
-                f"{dotted}: no images ({'/'.join(sorted(IMAGE_EXTS))}) found "
+                f"{dotted}: no images or videos "
+                f"({'/'.join(sorted(MEDIA_EXTS))}) found "
                 f"in {local_abs}")
         if report.uncaptioned:
             stems = ", ".join(report.uncaptioned)
             if allow_uncaptioned:
                 warnings.append(
                     f"{dotted}: {len(report.uncaptioned)} of "
-                    f"{report.image_count} images have no .txt sidecar: {stems}")
+                    f"{report.image_count + report.video_count} media files have no .txt sidecar: {stems}")
             else:
                 raise PreflightError(
                     f"{dotted}: {len(report.uncaptioned)} of "
-                    f"{report.image_count} images have no .txt sidecar: {stems} "
+                    f"{report.image_count + report.video_count} media files have no .txt sidecar: {stems} "
                     "(pass allow_uncaptioned to proceed anyway)")
         if report.excluded:
             warnings.append(

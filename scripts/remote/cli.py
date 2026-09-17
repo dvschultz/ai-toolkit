@@ -209,6 +209,10 @@ def _print_report(report) -> None:
     if report.drift:
         print("  CONFIG DRIFT: local derived config no longer matches the "
               "hash this run launched with")
+    if getattr(report, "noise_suspect", False):
+        print("  ** POSSIBLE DIVERGENCE ** the newest sample batch has the "
+              "file-size signature of noise images — open one before spending "
+              "another GPU hour (see detail)")
     if report.reviewable:
         print(f"  reviewable sample steps: {report.reviewable}")
     if report.detail:
@@ -242,7 +246,10 @@ def cmd_preflight(args) -> int:
     print(f"  derived config: {result.derived_config_path}")
     print(f"  config hash:    {result.config_hash}")
     for report in result.dataset_reports:
-        print(f"  dataset {report.folder}: {report.image_count} image(s), "
+        media = (f"{report.image_count} image(s)" if not report.video_count
+                 else f"{report.video_count} video(s)" if not report.image_count
+                 else f"{report.image_count} image(s) + {report.video_count} video(s)")
+        print(f"  dataset {report.folder}: {media}, "
               f"{report.caption_count} caption(s), "
               f"{report.total_bytes / 1e6:.1f} MB to upload")
     print(f"  upload set: {len(result.upload_set)} path(s)")
@@ -567,6 +574,14 @@ def build_parser() -> argparse.ArgumentParser:
                     "guide in scripts/remote/README.md")
     parser.add_argument("--base-dir", default=".",
                         help=argparse.SUPPRESS)  # test/fixture hook
+    parser.add_argument("--output-base", default=None, metavar="DIR",
+                        help="where to write pulled artifacts (checkpoints + "
+                             "samples), as <DIR>/<run>/. Default: repo "
+                             "./output/<run>. runs/<run> (manifest + mirrors) "
+                             "always stays under the repo so attach/re-entry "
+                             "work. Also settable via $AITK_OUTPUT_BASE. Point "
+                             "at an external drive to keep large (Flux.2) pulls "
+                             "from filling the local disk.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("preflight", help="validate config + dataset; write "
@@ -649,6 +664,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+    # --output-base relocates the heavy artifact pulls (contract.local_output_dir
+    # reads this env at call time). Set before any command runs.
+    if getattr(args, "output_base", None):
+        os.environ["AITK_OUTPUT_BASE"] = args.output_base
     load_env(args.base_dir)
     try:
         if args.command in _NEEDS_API:

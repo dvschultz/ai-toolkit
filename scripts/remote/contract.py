@@ -163,6 +163,16 @@ def local_run_dir(run_name: str, base_dir: str = ".") -> str:
 
 
 def local_output_dir(run_name: str, base_dir: str = ".") -> str:
+    # Pulled artifacts (checkpoints + samples) can be large — a Flux.2 run is
+    # ~11GB. AITK_OUTPUT_BASE (set by the CLI's --output-base) relocates them
+    # off the repo volume, e.g. to an external drive, so big pulls can't fill
+    # the local disk. runs/<run> (manifest + small mirrors) deliberately is NOT
+    # moved — it stays under base_dir so attach/re-entry still work. Read at
+    # call time so the flag/env can be set in main(). Default: repo
+    # ./output/<run>.
+    override = os.environ.get("AITK_OUTPUT_BASE")
+    if override:
+        return os.path.join(os.path.expanduser(override), run_name)
     return os.path.join(base_dir, LOCAL_OUTPUT_DIR, run_name)
 
 
@@ -246,7 +256,13 @@ WATCH_EXIT_CODES = {
 # Filename grammars
 # ---------------------------------------------------------------------------
 
-SAMPLE_RE = re.compile(r"^(?P<time>\d+)__(?P<step>\d{9})_(?P<count>\d+)\.(?P<ext>jpg|jpeg|png|webp)$")
+# Video architectures (Wan, LTX-2, MiniMax-H3) write samples as .mp4 (or
+# animated .webp/.gif). Without the video extensions here the sample pull
+# matches nothing, last_pulled_sample_step stays 0, and `watch` never reports
+# a reviewable batch even though the samples exist on the pod.
+SAMPLE_RE = re.compile(
+    r"^(?P<time>\d+)__(?P<step>\d{9})_(?P<count>\d+)"
+    r"\.(?P<ext>jpg|jpeg|png|webp|mp4|mov|webm|mkv|gif)$")
 
 
 def parse_sample_filename(filename: str):

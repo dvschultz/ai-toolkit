@@ -63,6 +63,8 @@ Sample 5-8 dataset images using the Read tool. You want to internalize:
 - **For character LoRAs**: identity features (face, build, hair), what varies across the set (clothing, pose, lighting).
 - **For combined**: both, plus how the two style descriptors in captions differ.
 
+**If the brief names reference images, the ground truth is written FROM those**, and the make-or-break texture line is copied from the brief rather than re-derived from your own read of the dataset. Your image-reading path flattens processing texture into "photorealistic"/"sharp"; a ground truth written from that read is how decker-protocolized shipped two runs against a target missing its make-or-break, with the wide pass happily reporting `texture_fidelity: strong` the whole time. **The wide pass is only ever as accurate as this file** — a wrong ground truth does not produce a weak review, it produces a confident wrong one.
+
 Write a "ground truth" spec **to a text file** (e.g. `output/<run>/ground_truth.txt`) before looking at any samples. Two reasons: it anchors *you* so you don't drift toward whatever the latest checkpoint happens to do — small datasets are easy to overfit to in your own analysis — and it is the exact file the Gemini wide pass (Step 4) consumes via `--ground-truth`. Make it concrete: medium, palette, texture/mark-making, what varies across the set, and any artist-intent notes lifted from the YAML comments. A fidelity judgment with no ground truth is a guess, for you and for Gemini alike.
 
 ### Step 4 — Evaluate checkpoints
@@ -96,6 +98,32 @@ python scripts/review_samples_gemini.py \
 
 Then **read `sample_review.json`** (it's text — cheap) and build the trajectory from the structured facts: where the style/identity first appears (floor), where fidelity and texture peak (candidate peak), where overfitting and control-prompt bleed begin (ceiling). Cross-reference the `composition` descriptors across *different* prompts at the same step to spot memorization (different prompts → identical layout). The JSON gives full per-checkpoint coverage as text — exactly what the non-negotiable rule demands — without spending Opus vision on it. Pass 1 produces a *hypothesis about the best region* — nothing more. **Do not name a winner from the JSON:** Gemini is the coarse pass, never the verdict — its "looks strong" has masked mode-collapse before (see the hard constraints below and `references/troubleshooting.md`).
 
+**Pass 1b — Score the make-or-break register with the reference judge (whenever the make-or-break is texture/processing).**
+
+When the brief's make-or-break is a texture, grain, glitch, print or
+mark-making register, the wide pass's `texture_fidelity` field is not
+sufficient and your own eyes are not either — both read processing as an
+adjective. Score it against the artist's reference images:
+
+```bash
+source .venv-captioning/bin/activate
+python scripts/register_judge_gemini.py \
+    --refs <brief's reference images> --register "<from the brief>" \
+    --exclude "palette, lighting, subject, composition" \
+    --out output/<run>/register_samples.json \
+    output/<run>/samples/*_00000<step>_*.jpg
+```
+
+Run it on the same prompt indices across every candidate checkpoint, and
+include a few DATASET plates in the same call as calibration — if the
+dataset scores 2 and every checkpoint scores 0, the register did not train,
+no matter how good the samples look. That comparison is the entire finding;
+without it a texture failure reads as success.
+
+When absolute scores cluster (everything "adequate"), switch to
+`--pairwise a.png:b.png` on same-prompt pairs — see the memory note on A/B
+judges saturating.
+
 **Pass 2 — Eyeball the candidate region with your own eyes (mandatory, no gaps).**
 The JSON already covers every checkpoint, so coverage is settled — *verification* is the job now. With the Read tool, directly look at every consecutive checkpoint from just-before the candidate peak to just-after the bleed/degradation onset — no skipped steps — plus the full prompt set for the genuine finalists. You are doing three things the JSON can't:
 1. **Pin the exact peak.** Gemini's scores cluster; your eye separates the true peak from its near-identical neighbour.
@@ -119,6 +147,38 @@ See `references/evaluation-criteria.md` for the full rubric per LoRA type. Score
 - **Generalization** — does the LoRA work for subjects/scenes the dataset never showed?
 - **Bleed** — do *non*-triggered control prompts still look like the base model? If they pick up the dataset style, the LoRA is over-baked.
 - **Honors artist intent** — if the config or YAML comments specify texture/grain/imperfection, did it survive? (this is the most-missed criterion)
+
+### Step 5b — Two gates before you name anything a winner
+
+**Gate A — on a distilled-deploy base, the verdict happens on the
+deployment endpoint, not on training samples.** Krea2 is the standing case:
+it trains on Krea-2-Raw and deploys on Krea-2-Turbo, and the Raw samples
+were wrong in *both* directions on decker-protocolized:
+
+| Raw sample said | Turbo actually did |
+|---|---|
+| gibberish logotypes on most prompts (looked disqualifying) | no logotypes at all — distillation removed them |
+| daylight prompts refuse the style (looked like a MUST failure) | rendered at dusk with lit windows |
+| texture register present at 2/3 (looked like success) | stripped to 0-1 at scale 1.0 |
+
+So: never decide a MUST from Raw samples on such a base. Render the 2-3
+finalists on the real endpoint across a **scale sweep** (1.0 / 1.3 / 1.6 —
+fine registers are frequently scale-gated and simply absent at 1.0), score
+those renders, and pick from them. Budget a few dollars and ~15 minutes;
+it is a rounding error against the run and it has reversed the verdict
+twice now.
+
+**Gate B — the artist sees outputs next to their own references before you
+write a recipe.** Build a contact sheet (samples or endpoint renders vs the
+brief's reference images), hand over the path, and ask the direct question:
+"does this have the thing you care about?" Only then write deploy notes.
+
+On decker-protocolized a winner was declared and the deploy notes were
+written before this gate; four images pasted by the artist overturned the
+whole verdict one message later. Your rubric can confirm that a checkpoint
+matches the spec — only the artist can tell you the spec was wrong. A
+verdict issued without Gate B is provisional, and should be *labelled*
+provisional when you report it.
 
 ### Step 6 — Recommend
 
@@ -179,6 +239,7 @@ When you do suggest one, provide the exact `scripts/merge_loras.py` invocation. 
 - **Don't stop at the coarse sweep.** Large step-jumps locate the region; they never decide the winner. If you crown a checkpoint without having inspected its immediate neighbors, you have guessed, not reviewed. Fill in every checkpoint in the candidate band first (Step 4, Pass 2).
 - **Don't extrapolate a checkpoint's quality from 2-3 samples.** A finalist gets its full prompt set looked at. "Step N's espresso prompt looked great" is not "step N is the winner" — the same step may fail on the horse or guitar prompt, and the next step may be strictly better. Both have happened and produced wrong picks.
 - **Don't treat the Gemini wide-pass JSON (or any summary) as the verdict.** It is the coarse pass — full coverage as text, nothing more. Its scores ("strong", "adequate") have the same blind spot a subagent's "densest composite" did: they can rate a mode-collapsed checkpoint highly. Use the JSON to locate the candidate band; eyeball the finalists yourself before committing. And do NOT fan out image-analysis subagents over the samples — that crashes the laptop and buys nothing the wide pass didn't already give you.
+- **Don't declare a winner from training samples on a distilled-deploy base, and don't write deploy notes before the artist has looked** (Step 5b). "Clean winner" is a claim about the artist's work, not about your rubric.
 - Don't pick the final checkpoint by default. The user could already do that — they invoked this skill specifically to find a non-default answer.
 - Don't write hedging recommendations ("step 1500 might work, but step 2000 could also be good"). Commit — but commit to a checkpoint you actually inspected with inspected neighbors, not to a guess dressed as a decision.
 - Don't enumerate every image you looked at. The output is a recommendation, not a review log.

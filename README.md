@@ -6,64 +6,150 @@ AI Toolkit is an easy to use all in one training suite for diffusion models. I t
 
 ## Supported Models
 
+The following models are supported for LoRA training (and in some cases full fine-tuning). Example configs are in `config/examples/`. Models without a listed HuggingFace path or example config may require manual setup or are still experimental. All models use `job: extension` with `type: "sd_trainer"` in the config. For newer models, arch flags and any version-specific notes are documented in that model's README under `extensions_built_in/diffusion_models/<model>/`.
+
 ### Image
-- [black-forest-labs/FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) (FLUX.1)
-- [black-forest-labs/FLUX.2-dev](https://huggingface.co/black-forest-labs/FLUX.2-dev) (FLUX.2)
-- [black-forest-labs/FLUX.2-klein-base-4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B) (FLUX.2-klein-base-4B)
-- [black-forest-labs/FLUX.2-klein-base-9B](https://huggingface.co/black-forest-labs/FLUX.2-klein-base-9B) (FLUX.2-klein-base-9B)
-- [ostris/Flex.1-alpha](https://huggingface.co/ostris/Flex.1-alpha) (Flex.1)
-- [ostris/Flex.2-preview](https://huggingface.co/ostris/Flex.2-preview) (Flex.2)
-- [lodestones/Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) (Chroma)
-- [Alpha-VLLM/Lumina-Image-2.0](https://huggingface.co/Alpha-VLLM/Lumina-Image-2.0) (Lumina2)
-- [Qwen/Qwen-Image](https://huggingface.co/Qwen/Qwen-Image) (Qwen-Image)
-- [Qwen/Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512) (Qwen-Image-2512)
-- [HiDream-ai/HiDream-I1-Full](https://huggingface.co/HiDream-ai/HiDream-I1-Full) (HiDream I1)
-- [OmniGen2/OmniGen2](https://huggingface.co/OmniGen2/OmniGen2) (OmniGen2)
-- [Tongyi-MAI/Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) (Z-Image Turbo)
-- [Tongyi-MAI/Z-Image](https://huggingface.co/Tongyi-MAI/Z-Image) (Z-Image)
-- [ostris/Z-Image-De-Turbo](https://huggingface.co/ostris/Z-Image-De-Turbo) (Z-Image De-Turbo)
-- [zhen-nan/L2P](https://huggingface.co/zhen-nan/L2P) (Z-Image L2P)
-- [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) (SDXL)
-- [stable-diffusion-v1-5/stable-diffusion-v1-5](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5) (SD 1.5)
-- [baidu/ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) (ERNIE-Image)
-- [NucleusAI/Nucleus-Image](https://huggingface.co/NucleusAI/Nucleus-Image) (Nucleus-Image)
-- [Boogu/Boogu-Image-0.1-Base](https://huggingface.co/Boogu/Boogu-Image-0.1-Base) (Boogu Image 0.1)
-- [HiDream-ai/HiDream-O1-Image](https://huggingface.co/HiDream-ai/HiDream-O1-Image) (HiDream O1)
-- [ideogram-ai/ideogram-4-fp8](https://huggingface.co/ideogram-ai/ideogram-4-fp8) (Ideogram 4 FP8)
-- [Photoroom/prxpixel-t2i](https://huggingface.co/Photoroom/prxpixel-t2i) (PRXPixel)
-- [circlestone-labs/Anima-Base-v1.0-Diffusers](https://huggingface.co/circlestone-labs/Anima-Base-v1.0-Diffusers) (Anima)
-- [krea/Krea-2-Raw](https://huggingface.co/krea/Krea-2-Raw) (Krea 2)
-- [krea/Krea-2-Turbo](https://huggingface.co/krea/Krea-2-Turbo) (Krea 2 Turbo)
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | `is_flux: true` | `train_lora_flux_24gb.yaml` | 24GB |
+| FLUX.1-schnell | `black-forest-labs/FLUX.1-schnell` | `is_flux: true` + `assistant_lora_path` | `train_lora_flux_schnell_24gb.yaml` | 24GB |
+| FLUX.2-dev | `black-forest-labs/FLUX.2-dev` | `arch: flux2` | — | 24GB |
+| FLUX.2-Klein-4B | `black-forest-labs/FLUX.2-klein-base-4B` | `arch: flux2_klein_4b` | — | 24GB |
+| FLUX.2-Klein-9B | `black-forest-labs/FLUX.2-klein-base-9B` | `arch: flux2_klein_9b` | — | 24GB |
+| Flex.1-alpha | `ostris/Flex.1-alpha` | `is_flux: true` | `train_lora_flex_24gb.yaml` | 24GB |
+| Flex.2-preview | `ostris/Flex.2-preview` | `arch: flex2` | `train_lora_flex2_24gb.yaml` | 24GB |
+| Stable Diffusion 3.5 Large | `stabilityai/stable-diffusion-3.5-large` | `is_v3: true` | `train_lora_sd35_large_24gb.yaml` | 24GB |
+| Lumina Image 2.0 | `Alpha-VLLM/Lumina-Image-2.0` | `is_lumina2: true` | `train_lora_lumina.yaml` | 20GB |
+| Chroma | `lodestones/Chroma1-Base` | `arch: chroma` | `train_lora_chroma_24gb.yaml` | 24GB |
+| Chroma Radiance | — | `arch: chroma_radiance` | — | 24GB |
+| Qwen-Image | `Qwen/Qwen-Image` | `arch: qwen_image` | `train_lora_qwen_image_24gb.yaml` | 24GB |
+| Qwen-Image-2512 | `Qwen/Qwen-Image-2512` | `arch: qwen_image` | — | 24GB |
+| HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | `arch: hidream` | `train_lora_hidream_48.yaml` | 48GB |
+| HiDream-O1 | `HiDream-ai/HiDream-O1-Image` | `arch: hidream_o1` | — | 48GB |
+| OmniGen2 | `OmniGen2/OmniGen2` | `arch: omnigen2` | `train_lora_omnigen2_24gb.yaml` | 24GB |
+| Z-Image | `Tongyi-MAI/Z-Image` | `arch: zimage` | — | 24GB |
+| Z-Image Turbo | `Tongyi-MAI/Z-Image-Turbo` | `arch: zimage` + assistant adapter | `train_lora_zimage_turbo_style.yaml` | 24GB |
+| Z-Image De-Turbo | `ostris/Z-Image-De-Turbo` | `arch: zimage` | — | 24GB |
+| Krea 2 | `krea/Krea-2-Raw` | `arch: krea2` | — | 24GB |
+| ERNIE-Image | `baidu/ERNIE-Image` | `arch: ernie_image` | — | — |
+| Nucleus-Image | `NucleusAI/Nucleus-Image` | `arch: nucleus_image` | — | — |
+| PRXPixel | `Photoroom/prxpixel-t2i` | `arch: prx_pixel` | — | — |
+| CogView4 | — | `arch: cogview4` | — | — |
+| F-Lite | — | `arch: f` | — | — |
+| SDXL | `stabilityai/stable-diffusion-xl-base-1.0` | `is_xl: true` | — | 12GB |
+| Stable Diffusion 1.5 | `stable-diffusion-v1-5/stable-diffusion-v1-5` | (default) | — | 8GB |
+| Stable Diffusion 2.x | — | `is_v2: true` | — | 8GB |
+| Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | — |
+| Anima | `circlestone-labs/Anima-Base-v1.0-Diffusers` | `arch: anima` | — | — |
+| Z-Image L2P | `zhen-nan/L2P` | `arch: zimage_l2p` | — | — |
+| Krea 2 Turbo | `krea/Krea-2-Turbo` | `arch: krea2` | — | 24GB |
+| Ideogram 4 FP8 | `ideogram-ai/ideogram-4-fp8` | `arch: ideogram4` | — | — |
+| Mage-Flow | `microsoft/Mage-Flow-Base` | `arch: mageflow` | — | — |
 
 ### Instruction / Edit
-- [black-forest-labs/FLUX.1-Kontext-dev](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev) (FLUX.1-Kontext-dev)
-- [Qwen/Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit) (Qwen-Image-Edit)
-- [Qwen/Qwen-Image-Edit-2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) (Qwen-Image-Edit-2509)
-- [Qwen/Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511) (Qwen-Image-Edit-2511)
-- [HiDream-ai/HiDream-E1-1](https://huggingface.co/HiDream-ai/HiDream-E1-1) (HiDream E1)
-- [Boogu/Boogu-Image-0.1-Edit](https://huggingface.co/Boogu/Boogu-Image-0.1-Edit) (Boogu Image Edit)
-- [krea/Krea-2-Raw](https://huggingface.co/krea/Krea-2-Raw) (Krea 2 Edit Training)
-- [krea/Krea-2-Turbo](https://huggingface.co/krea/Krea-2-Turbo) (Krea 2 Turbo Edit Training)
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| FLUX.1-Kontext-dev | `black-forest-labs/FLUX.1-Kontext-dev` | `arch: flux_kontext` | `train_lora_flux_kontext_24gb.yaml` | 24GB |
+| Qwen-Image-Edit | `Qwen/Qwen-Image-Edit` | `arch: qwen_image_edit` | `train_lora_qwen_image_edit_32gb.yaml` | 32GB |
+| Qwen-Image-Edit-2509 | `Qwen/Qwen-Image-Edit-2509` | `arch: qwen_image_edit_plus` | `train_lora_qwen_image_edit_2509_32gb.yaml` | 32GB |
+| Qwen-Image-Edit-2511 | `Qwen/Qwen-Image-Edit-2511` | `arch: qwen_image_edit_plus:2511` | — | 32GB |
+| HiDream-E1-1 | `HiDream-ai/HiDream-E1-1` | `arch: hidream_e1` | — | 48GB |
+| Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | 24GB |
+| Boogu Image Edit | `Boogu/Boogu-Image-0.1-Edit` | `arch: boogu_image_edit` | — | 24GB |
+| Krea 2 (edit training) | `krea/Krea-2-Raw` | `arch: krea2` | — | 24GB |
+| Krea 2 Turbo (edit training) | `krea/Krea-2-Turbo` | `arch: krea2` | — | 24GB |
+| Mage-Flow Edit | `microsoft/Mage-Flow-Edit-Base` | `arch: mageflow_edit` | — | — |
 
 ### Video
-- [Wan-AI/Wan2.1-T2V-1.3B-Diffusers](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers) (Wan 2.1 1.3B)
-- [Wan-AI/Wan2.1-I2V-14B-480P-Diffusers](https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P-Diffusers) (Wan 2.1 I2V 14B-480P)
-- [Wan-AI/Wan2.1-I2V-14B-720P-Diffusers](https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-720P-Diffusers) (Wan 2.1 I2V 14B-720P)
-- [Wan-AI/Wan2.1-T2V-14B-Diffusers](https://huggingface.co/Wan-AI/Wan2.1-T2V-14B-Diffusers) (Wan 2.1 14B)
-- [Wan-AI/Wan2.2-T2V-A14B-Diffusers](https://huggingface.co/Wan-AI/Wan2.2-T2V-A14B-Diffusers) (Wan 2.2 14B)
-- [Wan-AI/Wan2.2-I2V-A14B-Diffusers](https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B-Diffusers) (Wan 2.2 I2V 14B)
-- [Wan-AI/Wan2.2-TI2V-5B-Diffusers](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B-Diffusers) (Wan 2.2 TI2V 5B)
-- [Lightricks/LTX-2](https://huggingface.co/Lightricks/LTX-2) (LTX-2)
-- [Lightricks/LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) (LTX-2.3)
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| Wan 2.1 T2V 1.3B | `Wan-AI/Wan2.1-T2V-1.3B-Diffusers` | `arch: wan21` | `train_lora_wan21_1b_24gb.yaml` | 24GB |
+| Wan 2.1 T2V 14B | `Wan-AI/Wan2.1-T2V-14B-Diffusers` | `arch: wan21` | `train_lora_wan21_14b_24gb.yaml` | 24GB |
+| Wan 2.1 I2V 14B-480P | `Wan-AI/Wan2.1-I2V-14B-480P-Diffusers` | `arch: wan21_i2v` | — | 24GB |
+| Wan 2.1 I2V 14B-720P | `Wan-AI/Wan2.1-I2V-14B-720P-Diffusers` | `arch: wan21_i2v` | — | 24GB |
+| Wan 2.2 T2V 14B | `Wan-AI/Wan2.2-T2V-A14B-Diffusers` | `arch: wan22_14b` | `train_lora_wan22_14b_24gb.yaml` | 24GB |
+| Wan 2.2 I2V 14B | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | `arch: wan22_14b_i2v` | — | 24GB |
+| Wan 2.2 TI2V 5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | `arch: wan22_5b` | — | 24GB |
+| LTX-2 | `Lightricks/LTX-2` | `arch: ltx2` | — | — |
+| LTX-2.3 | `Lightricks/LTX-2.3` | `arch: ltx2` | — | — |
+| MiniMax-H3 | `Comfy-Org/MiniMax-H3` [^h3] | `arch: minimax_h3` (also `minimax_h3_ref2va`, `minimax_h3_vsa`) | — | — |
+
+[^h3]: Use the **Comfy-Org repack**, not `MiniMaxAI/MiniMax-H3`. A hub-style
+`name_or_path` is treated as a replacement weights repo, and the original
+MiniMax repo does not contain the repacked transformer/text-encoder/VAE files
+the loader asks for — pointing at it fails with a 404 while the model is
+loading. (The original repo is still used for tokenizer/processor config; that
+path is resolved internally and needs no configuration.) The weights are
+already int8-ConvRot + nvfp4 quantized, so leave `quantize`/`quantize_te` off.
 
 ### Audio
-- [ACE-Step/Ace-Step1.5](https://huggingface.co/ACE-Step/Ace-Step1.5) (Ace Step 1.5)
-- [ACE-Step/acestep-v15-xl-base](https://huggingface.co/ACE-Step/acestep-v15-xl-base) (Ace Step 1.5 XL)
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| Ace Step 1.5 | `ACE-Step/Ace-Step1.5` | `arch: ace_step_15` | — | — |
+| Ace Step 1.5 XL | `ACE-Step/acestep-v15-xl-base` | `arch: ace_step_15_xl` | — | — |
 
 ### Experimental
-- [lodestones/Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) (Zeta Chroma)
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| Zeta Chroma | `lodestones/Zeta-Chroma` | `arch: zeta_chroma` | — | — |
 
 ## Installation
+
+### Install with the AI Toolkit Manager (experimental)
+
+The recommended way to install and run AI Toolkit is with the **AI Toolkit
+Manager**, built into this repo. The manager detects your hardware and sets up
+the right PyTorch build, creates the python environment, and grabs local copies
+of Node.js and FFmpeg — everything stays inside the ai-toolkit folder, nothing
+is installed system-wide. On every launch the manager checks for updates and
+applies them (your local changes are never overwritten — if you have modified
+files, the update is skipped with a warning), then starts the UI at
+`http://localhost:8675`.
+
+The manager is still **experimental** — please let me know if you have any
+issues with it. The manual instructions below still work if you prefer them
+or run into problems.
+
+The only requirement is **git** (on Windows the manager can even fetch a
+portable git for updates, but you need one installed to clone the repo first).
+
+```bash
+git clone https://github.com/ostris/ai-toolkit.git
+cd ai-toolkit
+```
+
+Then start the manager with the script for your platform:
+
+Linux:
+```bash
+chmod +x run_linux.sh
+./run_linux.sh
+```
+
+MacOS (Apple Silicon, experimental):
+```bash
+chmod +x run_mac.zsh
+./run_mac.zsh
+```
+
+Windows: double-click `run_windows.bat` (or run it from a terminal).
+
+You can also use the manager directly from a terminal (handy on headless
+servers):
+
+```bash
+python3 -m manager install   # first-time setup
+python3 -m manager update    # pull updates + sync dependencies
+python3 -m manager launch    # start the UI
+python3 -m manager doctor    # diagnose problems
+```
+
+### Manual installation
 
 Requirements:
 - python >=3.10 (3.12 recommended)
@@ -79,7 +165,7 @@ cd ai-toolkit
 python3 -m venv venv
 source venv/bin/activate
 # install torch first
-pip3 install --no-cache-dir torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+pip3 install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip3 install -r requirements.txt
 ```
 
@@ -95,22 +181,8 @@ git clone https://github.com/ostris/ai-toolkit.git
 cd ai-toolkit
 python -m venv venv
 .\venv\Scripts\activate
-pip install --no-cache-dir torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+pip install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip install -r requirements.txt
-```
-
-MacOS:
-
-Experimental support for Silicon Macs is available. I do not have a Mac with enough RAM to fully test this
-so please let me know if there are issues. There is a convience script to install and run on MacOS 
-locates at `./run_mac.zsh` that will install the dependencies locally and run the UI. To run this, 
-do the following:
-
-```bash
-git clone https://github.com/ostris/ai-toolkit.git
-cd ai-toolkit
-chmod +x run_mac.zsh
-./run_mac.zsh
 ```
 
 
@@ -151,54 +223,6 @@ set AI_TOOLKIT_AUTH=super_secure_password && npm run build_and_start
 # Windows Powershell
 $env:AI_TOOLKIT_AUTH="super_secure_password"; npm run build_and_start
 ```
-
-
-## Supported Models
-
-The following models are supported for LoRA training (and in some cases full fine-tuning). Example configs are in `config/examples/`.
-
-### Image Models
-
-| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
-|---|---|---|---|---|
-| FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | `is_flux: true` | `train_lora_flux_24gb.yaml` | 24GB |
-| FLUX.1-schnell | `black-forest-labs/FLUX.1-schnell` | `is_flux: true` + `assistant_lora_path` | `train_lora_flux_schnell_24gb.yaml` | 24GB |
-| FLUX.1-Kontext-dev | `black-forest-labs/FLUX.1-Kontext-dev` | `arch: flux_kontext` | `train_lora_flux_kontext_24gb.yaml` | 24GB |
-| Flux.2 | `black-forest-labs/FLUX.2-dev` | `arch: flux2` | — | 24GB |
-| Flux.2-Klein-4B | — | `arch: flux2_klein_4b` | — | 24GB |
-| Flux.2-Klein-9B | — | `arch: flux2_klein_9b` | — | 24GB |
-| Flex.1-alpha | `ostris/Flex.1-alpha` | `is_flux: true` | `train_lora_flex_24gb.yaml` | 24GB |
-| Flex.2-preview | `ostris/Flex.2-preview` | `arch: flex2` | `train_lora_flex2_24gb.yaml` | 24GB |
-| Stable Diffusion 3.5 Large | `stabilityai/stable-diffusion-3.5-large` | `is_v3: true` | `train_lora_sd35_large_24gb.yaml` | 24GB |
-| Lumina Image 2.0 | `Alpha-VLLM/Lumina-Image-2.0` | `is_lumina2: true` | `train_lora_lumina.yaml` | 20GB |
-| Chroma | `lodestones/Chroma` | `arch: chroma` | `train_lora_chroma_24gb.yaml` | 24GB |
-| Chroma Radiance | — | `arch: chroma_radiance` | — | 24GB |
-| HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | `arch: hidream` | `train_lora_hidream_48.yaml` | 48GB |
-| HiDream-E1 | — | `arch: hidream_e1` | — | 48GB |
-| OmniGen2 | `OmniGen2/OmniGen2` | `arch: omnigen2` | `train_lora_omnigen2_24gb.yaml` | 24GB |
-| Qwen-Image | `Qwen/Qwen-Image` | `arch: qwen_image` | `train_lora_qwen_image_24gb.yaml` | 24GB |
-| Qwen-Image-Edit | `Qwen/Qwen-Image-Edit` | `arch: qwen_image_edit` | `train_lora_qwen_image_edit_32gb.yaml` | 32GB |
-| Qwen-Image-Edit-2509 | `Qwen/Qwen-Image-Edit-2509` | `arch: qwen_image_edit_plus` | `train_lora_qwen_image_edit_2509_32gb.yaml` | 32GB |
-| CogView4 | — | `arch: cogview4` | — | — |
-| F-Lite | — | `arch: f-lite` | — | — |
-| Z-Image | — | `arch: zimage` | — | — |
-| Stable Diffusion 1.5 | `runwayml/stable-diffusion-v1-5` | (default) | — | 8GB |
-| Stable Diffusion 2.x | — | `is_v2: true` | — | 8GB |
-| SDXL | — | `is_xl: true` | — | 12GB |
-
-### Video Models
-
-| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
-|---|---|---|---|---|
-| Wan 2.1 T2V 1.3B | `Wan-AI/Wan2.1-T2V-1.3B-Diffusers` | `arch: wan21` | `train_lora_wan21_1b_24gb.yaml` | 24GB |
-| Wan 2.1 T2V 14B | `Wan-AI/Wan2.1-T2V-14B-Diffusers` | `arch: wan21` | `train_lora_wan21_14b_24gb.yaml` | 24GB |
-| Wan 2.1 I2V | — | `arch: wan21_i2v` | — | 24GB |
-| Wan 2.2 T2V 14B | `ai-toolkit/Wan2.2-T2V-A14B-Diffusers-bf16` | `arch: wan22_14b` | `train_lora_wan22_14b_24gb.yaml` | 24GB |
-| Wan 2.2 T2V 5B | — | `arch: wan22_5b` | — | 24GB |
-| Wan 2.2 I2V 14B | — | `arch: wan22_14b_i2v` | — | 24GB |
-| LTX Video 2 | — | `arch: ltx2` | — | — |
-
-Models without a listed HuggingFace path or example config may require manual setup or are still experimental. All models use `job: extension` with `type: "sd_trainer"` in the config.
 
 
 ## FLUX.1 Training

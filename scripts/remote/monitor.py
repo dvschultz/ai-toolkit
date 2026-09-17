@@ -83,6 +83,7 @@ class StatusReport:
     disk_used_pct: int = None
     disk_warning: bool = False
     drift: bool = False
+    noise_suspect: bool = False
     cost_estimate: float = None
     detail: str = ""
     reviewable: list = field(default_factory=list)  # sample steps ready for review
@@ -395,6 +396,59 @@ def check_disk(ep: Endpoint, *, runner=subprocess.run):
 # Reviewability (R16 — the decision lives HERE)
 # ---------------------------------------------------------------------------
 
+# Divergence tripwire (R31). A trainer whose weights are diverging keeps
+# reporting a healthy loss — the EMA sign bug (see toolkit/ema.py) produced
+# 0.10-0.24 loss and no NaN while every sampled image was pure noise. The
+# cheap out-of-band signal is the sample files themselves: noise is
+# incompressible, so a diverged batch lands as a dozen JPEGs of nearly
+# IDENTICAL, near-ceiling size, where a healthy batch of different prompts
+# varies several-fold (observed: healthy 33-110 KB spread, diverged
+# 248-251 KB flat).
+NOISE_MIN_FILES = 4
+NOISE_SIZE_RATIO = 1.15      # max/min across the batch
+NOISE_MEDIAN_BYTES = 180_000
+
+
+def check_sample_noise(m: RunManifest, base_dir: str = ".") -> tuple:
+    """(suspect, detail) for the newest fully-pulled sample step.
+
+    Flags the diverged-weights signature; says nothing about aesthetics.
+    """
+    samples_dir = os.path.join(contract.local_output_dir(m.run_name, base_dir),
+                               "samples")
+    if not os.path.isdir(samples_dir):
+        return False, None
+    groups = {}
+    for name in os.listdir(samples_dir):
+        parsed = contract.parse_sample_filename(name)
+        if parsed is None:
+            continue
+        step, _count = parsed
+        try:
+            size = os.path.getsize(os.path.join(samples_dir, name))
+        except OSError:
+            continue
+        groups.setdefault(step, []).append(size)
+    if not groups:
+        return False, None
+    step = max(groups)
+    sizes = sorted(groups[step])
+    if len(sizes) < NOISE_MIN_FILES or sizes[0] <= 0:
+        return False, None
+    ratio = sizes[-1] / sizes[0]
+    median = sizes[len(sizes) // 2]
+    if ratio < NOISE_SIZE_RATIO and median > NOISE_MEDIAN_BYTES:
+        return True, (
+            f"possible DIVERGENCE at step {step}: {len(sizes)} samples are "
+            f"near-identical in size ({sizes[0] // 1024}-{sizes[-1] // 1024} KB, "
+            f"ratio {ratio:.2f}) and large — the signature of noise images, "
+            "which a healthy loss curve will NOT reveal. Open one sample before "
+            "spending another GPU hour; if it is noise, check the EMA update "
+            "sign in toolkit/ema.py and compare ||B@A|| between the last two "
+            "checkpoints")
+    return False, None
+
+
 def reviewable_steps(m: RunManifest, base_dir: str = ".", now: float = None) -> list:
     """Locally pulled sample steps ready for review, beyond last_reviewed_step.
 
@@ -458,6 +512,9 @@ def _status_from(m: RunManifest, pod_info, ep, *, base_dir: str, runner) -> Stat
     if drift:
         details.append("config drift: runs/<run>/remote_config.yaml no longer "
                        "matches the hash recorded at launch (R19)")
+    noise_suspect, noise_detail = check_sample_noise(m, base_dir=base_dir)
+    if noise_detail:
+        details.append(noise_detail)
 
     return StatusReport(
         run_name=m.run_name,
@@ -469,6 +526,7 @@ def _status_from(m: RunManifest, pod_info, ep, *, base_dir: str, runner) -> Stat
         disk_used_pct=disk_pct,
         disk_warning=disk_warn,
         drift=drift,
+        noise_suspect=noise_suspect,
         cost_estimate=m.estimated_cost(),
         detail="; ".join(details),
         reviewable=reviewable_steps(m, base_dir=base_dir),
@@ -554,6 +612,7 @@ def _emit(run_name: str, report: StatusReport, code: int, json_out: bool,
             "oom_skips": report.oom_skips,
             "disk_used_pct": report.disk_used_pct,
             "drift": report.drift,
+            "noise_suspect": report.noise_suspect,
             "reviewable_steps": report.reviewable,
             "last_reviewed_step": m.last_reviewed_step,
             "cost_estimate": report.cost_estimate,

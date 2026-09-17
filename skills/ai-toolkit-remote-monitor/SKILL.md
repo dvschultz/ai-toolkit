@@ -61,7 +61,11 @@ The JSON carries: `state`, `step`, `total_steps`, `loss`, `oom_skips`,
 `cost_estimate`, `pulled_checkpoint_steps`, `detail`, `log_tail_path`.
 
 `watch --once` also **pulls** new samples/checkpoints into `output/<run>/`
-each cycle, so the artifacts are local by the time you see exit 10.
+each cycle, so the artifacts are local by the time you see exit 10. If the
+run was launched with `--output-base DIR` (or `$AITK_OUTPUT_BASE`), pass the
+**same** global `--output-base` here too (before the subcommand) so pulls go
+to `<DIR>/<run>/`; it isn't persisted in the manifest, so an omitted flag
+silently pulls to the repo's `./output` instead.
 
 **Cadence:** every ~10 min for an active run. First runs spend 20-60 min in
 `warming` (model download) before step 1 — that's `state: RUNNING`,
@@ -103,6 +107,26 @@ in the JSON tells you which are local to compare.
   pod still trains the original. The new config only applies on next launch.
 - **SAMPLING** — step stall with fresh sample-file mtimes is normal (12-16
   images × ~45s), not a hang.
+- **`noise_suspect: true`** — **stop and look at a sample image before
+  anything else.** The newest pulled batch has the file-size signature of
+  pure noise: a dozen JPEGs of near-identical, near-ceiling size where a
+  healthy batch of different prompts varies several-fold. A diverging
+  trainer does not show up in the loss — the EMA sign bug ran at loss
+  0.10-0.24 with no NaN while every sample and every saved checkpoint was
+  noise, and the run was only caught because a human opened an image. If
+  the sample is noise: stop the run immediately (nothing it saves is
+  usable), then confirm with `||B@A||` growth between two consecutive
+  checkpoints (170x over 250 steps in the known case) and check the EMA
+  update sign in `toolkit/ema.py`. Preflight now refuses EMA runs on a
+  broken ema.py, so a fresh trip means a *new* cause — investigate before
+  relaunching.
+
+**The general lesson: a healthy loss curve is not evidence that a run is
+producing usable output.** Loss is computed on the live weights; samples
+and checkpoints are written from the EMA shadow. Anything that corrupts the
+shadow, the save path, or the sampler is invisible in-band. Whenever a run
+looks fine but you have not actually opened an image for several hundred
+steps, open one.
 
 ## Stopping early
 

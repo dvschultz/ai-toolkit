@@ -262,6 +262,17 @@ Klein-9B calibration (default scale 1.4).
 
 ## Things to watch for
 
+- **A distilled endpoint can strip a fine register at scale 1.0 — sweep
+  before concluding it wasn't trained.** Krea-2-Turbo is the standing case:
+  a decker-protocolized checkpoint that scored 2/3 on its artifact texture
+  in training samples scored 0-1 on Turbo at 1.0, then came back at 1.6
+  (smear on 5 of 6 prompts). Distillation regularizes away high-frequency
+  processing texture first; palette and light survive it. So for any LoRA
+  whose make-or-break is texture/grain/glitch, run 1.0 / 1.3 / 1.6 before
+  saying the register is missing, expect the deploy scale to sit high, and
+  check over-drive at that scale **by eye** — a judge reads banding as
+  signal. A texture phrase in the assisted prompt can supply modes the LoRA
+  carries weakly, and stacks with scale.
 - **Trigger phrase IS required in the prompt**, just like in training. The
   script doesn't auto-append. If the user's prompt looks suspiciously vanilla
   (no `silex relief, 4m0nsx`-style suffix), ask whether they meant to include

@@ -85,6 +85,7 @@ signals:
 | People/faces central to outputs | Face quality matters (model tier + DOP) |
 | "every image should have ___" vs "I want to ask for ___" | Embedded vs promptable ruling for that trait |
 | A feel-word keeps recurring ("delicate", "glowy") | Candidate make-or-break ingredient — capture verbatim |
+| A word about how the work is MADE ("glitchy", "printed", "degraded", "analog") | **Texture/processing register** — the highest-risk make-or-break. Get reference images and name it concretely in the brief; measure coverage at Stage 0.5 |
 
 ## Step 3 — Ask only the residual axes
 
@@ -95,8 +96,27 @@ inferred or asked. The second is the **embedded-vs-promptable walk** (axis
 10): take each recurring trait the dataset look surfaced and get a ruling —
 automatic every time / only when asked / keep its variety. It is the
 most-missed question in this workflow's history and it cannot be changed
-after training without a recaption and rerun. The first is the
-**fidelity↔flexibility dial**:
+after training without a recaption and rerun.
+
+**Every "automatic / bake it" ruling gets a feasibility check before it is
+recorded.** The artist's preference decides what they *want*; the base
+model's priors decide what is *achievable*, and those are different
+questions. Run the ruling past this table before writing it down:
+
+| Trait ruled "automatic" | Feasibility risk |
+|---|---|
+| A symbol, glyph, emblem, wordmark or any line-art overlay in a consistent frame position | **High on a text-strong base** (Krea2 and anything Qwen-lineage, Ideogram). An un-captioned mark in a fixed slot reads to the base as lettering, so it fires as a gibberish logotype rather than the shape. Caption it with a non-text noun anchor and make it promptable, or move to a base with a weaker text prior |
+| A texture/processing register (grain, smear, glitch, halftone) present in under ~60% of the dataset | **High.** It will not bind by omission at all — see the Stage 0.5 coverage survey. Needs EMA off, higher rank, native-resolution buckets, and inverse-marked clean plates |
+| A trait whose vocabulary the base already renders on request | Low — safe to bake |
+| A trait that is a pure color/palette relationship | Low — bakes reliably by omission |
+
+When a ruling is high-risk, say so in one sentence, give the achievable
+alternative, and let the artist choose with that information. Recording
+"bake the sigils stochastically" without this check cost decker-protocolized
+an entire run: the ruling was legitimate as taste and impossible on the base
+that had already been chosen.
+
+The first is the **fidelity↔flexibility dial**:
 
 > "When you prompt something your images never showed, should the model
 > follow the prompt and stretch your style around it — or pull the result

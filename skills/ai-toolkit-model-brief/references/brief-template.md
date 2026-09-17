@@ -21,10 +21,18 @@ become sample prompts): "<...>", "<...>"
 
 ## Make-or-break (the acceptance criterion — verbatim, artist's own words)
 
+**Reference images (the artist's own pick — these ARE the style):** <3-4
+paths. Every texture verdict in this project is scored against these, never
+against a written description.>
 **The one ingredient that, if lost, makes this a failure:** "<...>"
+**How it is made/processed:** <name the texture, medium, artifacts,
+rendering in concrete terms — "vertical pixel-streak curtains and datamosh
+blocks", not "stylized". If this line is vague, the run will optimize the
+wrong thing.>
 **Feel words:** <2–3 plain adjectives, e.g. delicate · glowing · rough>
-**Dataset check:** <is the ingredient consistently present in the images?
-If it appears in under ~half the set, flag it — it won't bind by omission.>
+**Register coverage (Stage 0.5 judge):** <N/total at >=2 = XX%. Under ~60%
+means it will NOT bind by omission: EMA off, higher rank, native-res
+buckets, inverse-mark the clean plates. Name the clean plates here.>
 
 ## The dial
 

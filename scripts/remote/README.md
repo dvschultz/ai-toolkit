@@ -33,6 +33,17 @@ python scripts/remote/cli.py <subcommand>     # or: python -m scripts.remote.cli
 | `rescue <run>` | Zero-GPU start a stopped pod, pull, verify, terminate. |
 | `mark-reviewed <run> <step>` | Advance the review watermark after reviewing samples. |
 
+### Global options
+
+| Option | Effect |
+|---|---|
+| `--output-base DIR` | Write pulled artifacts (checkpoints + samples) to `<DIR>/<run>/` instead of the repo's `./output/<run>/`. Also settable via `$AITK_OUTPUT_BASE`. `runs/<run>/` (manifest + mirrors) always stays under the repo so `attach`/re-entry work. Goes **before** the subcommand, and must be passed on **every** command for a run (it is not persisted in the manifest). Point it at an external drive so large (Flux.2, ~11GB) pulls can't fill the local disk — a full disk makes `down`'s final pull fail and leaves the pod STOPPED until you free space. |
+
+```bash
+python scripts/remote/cli.py --output-base "/Volumes/Lexar/aitk-output" \
+    up config/examples/<config>.yaml --gpu H200 --gpu-fallback "H100 NVL"
+```
+
 ---
 
 ## 1. Setup — RunPod API key (USER-REQUIRED)

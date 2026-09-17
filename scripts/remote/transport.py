@@ -427,6 +427,32 @@ class PullResult:
     optimizer_pairing_step: int = None
 
 
+def _prune_stale_optimizers(out_dir: str, *, keep: str) -> None:
+    """Keep only the newest optimizer_<step>.pt snapshot in out_dir.
+
+    The pod holds exactly one optimizer.pt, overwritten on every save, so only
+    the newest pairing can ever be resumed from. Older local snapshots are
+    already-superseded copies of that same single file — at ~350 MB each they
+    were the largest thing in output/ (37 GB across 20 finished runs) while
+    carrying no state the newest one lacks. Pruned only AFTER the replacement
+    lands intact, so a failed pull never leaves the run without resume state.
+    """
+    keep_base = os.path.basename(keep)
+    try:
+        names = os.listdir(out_dir)
+    except OSError:
+        return
+    for name in names:
+        if name == keep_base or not name.startswith("optimizer_"):
+            continue
+        if not name.endswith(".pt"):
+            continue
+        try:
+            os.remove(os.path.join(out_dir, name))
+        except OSError as e:
+            _warn(f"could not prune stale {name}: {e}")
+
+
 def pull_artifacts(ep: Endpoint, m: RunManifest, *, base_dir: str = ".",
                    now: float = None, runner=subprocess.run) -> PullResult:
     """Incrementally pull new samples/checkpoints into output/<run>/ (R15/R23).
@@ -552,6 +578,7 @@ def pull_artifacts(ep: Endpoint, m: RunManifest, *, base_dir: str = ".",
                 result.optimizer_pairing_step = newest
                 m.optimizer_pairing_step = newest
                 result.pulled_files += 1
+                _prune_stale_optimizers(out_dir, keep=opt_local)
             else:
                 _warn(f"optimizer.pt snapshot failed: {(res.stderr or '').strip()[:500]}")
 
