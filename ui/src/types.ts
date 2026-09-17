@@ -117,6 +117,18 @@ export interface EMAConfig {
   ema_decay: number;
 }
 
+export interface ValidationItem {
+  image_path: string;
+  prompt: string;
+}
+
+export interface ValidationConfig {
+  validation_items: ValidationItem[];
+  resolution: number;
+  validate_every_n_steps: number;
+  validation_sigmas?: number[];
+}
+
 export interface TrainConfig {
   batch_size: number;
   bypass_guidance_embedding?: boolean;
@@ -151,6 +163,7 @@ export interface TrainConfig {
   differential_guidance_scale?: number;
   audio_loss_multiplier?: number;
   max_loss?: number | null;
+  validation_config?: ValidationConfig;
 }
 
 export interface QuantizeKwargsConfig {
@@ -171,6 +184,7 @@ export interface ModelConfig {
   layer_offloading_transformer_percent?: number;
   layer_offloading_text_encoder_percent?: number;
   assistant_lora_path?: string;
+  unconditional_lora_path?: string;
   compile?: boolean;
   block_compile?: boolean;
   compile_mode?: 'default' | 'max-autotune' | 'fastest';
@@ -200,6 +214,7 @@ export interface SampleItem {
 export interface SampleConfig {
   sampler: string;
   sample_every: number;
+  sample_start_step: number;
   width: number;
   height: number;
   prompts?: string[];
@@ -280,6 +295,7 @@ export interface CaptionProcessConfig {
     max_new_tokens?: number;
     fixed_caption?: string;
     caption_extension?: string;
+    thinking?: boolean;
   }
 }
 

@@ -162,6 +162,20 @@ for _var in HF_TOKEN HF_HOME HF_HUB_ENABLE_HF_TRANSFER HF_HUB_DISABLE_XET; do
     fi
 done
 
+# (a2) Force the robust Rust downloader. The image ships hf_transfer but
+# defaults HF_HUB_ENABLE_HF_TRANSFER=0, leaving the plain Python downloader,
+# which stalls indefinitely on dead sockets with no read-timeout (observed:
+# Klein 9B weight download hung at 10% then 88% on two consecutive pods,
+# 2026-06). hf_transfer does parallel chunked transfer with retries.
+export HF_HUB_ENABLE_HF_TRANSFER=1
+
+# (a3) Bypass the Xet protocol. HF serves large files over Xet (content-
+# addressed CAS); the pods' route to that backend dies mid-stream and hangs
+# (matches HF's own Apr-2026 "XET Protocol large-file stall" incident; it
+# killed downloads at 0.06% / 10% / 88% on three pods regardless of which
+# downloader was used). Forcing this falls back to the classic LFS/CDN path.
+export HF_HUB_DISABLE_XET=1
+
 # (b) Train.
 cd {q(contract.REMOTE_REPO_DIR)} && {train_cmd}
 code=$?

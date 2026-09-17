@@ -395,7 +395,12 @@ def main():
         "prompts": {str(i): render_prompt(p, trigger) for i, p in enumerate(prompts)},
     }
 
-    client = genai.Client(api_key=api_key)
+    # 120s per-request timeout. Without it, a stalled connection makes
+    # generate_content block forever with no exception — which defeats
+    # analyze_with_retry (it only retries on raised exceptions, never on a
+    # silent hang). With a timeout the stall raises and the retry re-issues
+    # on a fresh connection. (Observed: quality pass froze at 40/260, 0% CPU.)
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=120_000))
     lock = threading.Lock()
 
     def flush():
