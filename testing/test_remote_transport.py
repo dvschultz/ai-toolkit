@@ -618,3 +618,48 @@ class TestPodClock(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestOptimizerPruning(unittest.TestCase):
+    """Only the newest optimizer_<step>.pt survives a pull.
+
+    The pod overwrites one optimizer.pt per save, so older local snapshots are
+    superseded copies of that same file, not distinct resume points.
+    """
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+
+    def _touch(self, name):
+        p = os.path.join(self.d, name)
+        with open(p, "wb") as f:
+            f.write(b"x")
+        return p
+
+    def test_keeps_only_the_newest_snapshot(self):
+        self._touch("optimizer_000000250.pt")
+        self._touch("optimizer_000000500.pt")
+        keep = self._touch("optimizer_000000750.pt")
+        transport._prune_stale_optimizers(self.d, keep=keep)
+        self.assertEqual(
+            sorted(n for n in os.listdir(self.d) if n.startswith("optimizer_")),
+            ["optimizer_000000750.pt"],
+        )
+
+    def test_leaves_checkpoints_and_samples_alone(self):
+        self._touch("myrun_000000250.safetensors")
+        self._touch("myrun.safetensors")
+        self._touch("optimizer.pt")
+        keep = self._touch("optimizer_000000500.pt")
+        self._touch("optimizer_000000250.pt")
+        transport._prune_stale_optimizers(self.d, keep=keep)
+        self.assertEqual(
+            sorted(os.listdir(self.d)),
+            ["myrun.safetensors", "myrun_000000250.safetensors",
+             "optimizer.pt", "optimizer_000000500.pt"],
+        )
+
+    def test_missing_dir_is_not_an_error(self):
+        transport._prune_stale_optimizers(
+            os.path.join(self.d, "nope"), keep="optimizer_000000250.pt")
