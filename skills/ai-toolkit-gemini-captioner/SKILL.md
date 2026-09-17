@@ -78,6 +78,33 @@ If the user mentions "the last LoRA leaked X" — add X and its synonyms
 explicitly to the avoid list. Document the reason in a comment (`# leaked in
 v1, baked color into trigger`).
 
+### 3b. Text in training images — make it PROMPTABLE, never baked (ALWAYS)
+
+Standing rule for every captioner: the model must be able to **render text when
+the prompt asks and none when it doesn't.** Text is a promptable capability —
+never baked-on, never blanket-suppressed. Same caption law as everything else:
+describe → promptable, omit → automatic/baked.
+
+- **Diegetic text** (signs, banners, screens, labels, book/scroll text that
+  belongs in the scene) → **TRANSCRIBE it verbatim in the caption** — e.g.
+  `a banner reading "OPEN"`, `a screen displaying "JOY RATING"`. For Ideogram
+  JSON captions, POPULATE the `text` element field (do NOT blank it). This binds
+  text↔text-words: a prompt with no text words renders no text; `a sign reading
+  X` renders X.
+- **Do NOT tell the captioner "no text / don't transcribe text."** That is the
+  classic bug: the image keeps its letters but the caption hides them, so the
+  model learns text is part of the unconditioned style and dumps gibberish onto
+  scenes that never asked (ed-society: signage images captioned text-blanked →
+  the deployed model leaked garbled letters on any "display/sign" prompt).
+- **Accidental text** (watermarks, source subtitles/captions, logos, UI chrome)
+  → **crop/inpaint it OUT of the image**; never caption it. Never wanted, baked
+  or promptable. (See the watermark→gibberish rule in `avoid-words-cookbook.md`.)
+- **Base sets text QUALITY, not the rule:** Ideogram v4 renders legible
+  promptable text; Klein/Krea2/SDXL/Z-Image render gibberish even when asked —
+  but transcribe-diegetic / crop-accidental is always the correct structure.
+- Keep the trigger/suffix and any deploy **assisted prompt text-neutral** — never
+  put "no text" there (blocks requested text) and never let it imply text.
+
 ### 4. Decide on suffix vs. TRIGGER token
 
 | Pattern | Use when |
@@ -111,6 +138,34 @@ trigger's default and "clean" becomes the describable exception.
 This is the mirror image of the degree-captioning rule (caption the DEGREE
 when the artist wants a range); here the artist wants one state to be
 automatic, so you mark only its absence.
+
+### 4c. Colour: the cap you write into the prompt is the cap on the output
+
+A captioner instructed to name "one or two dominant colours" teaches the model
+that outputs have one or two colours. Naming hues keeps colour promptable (the
+described-is-promptable law), but the *count* you allow is itself learned:
+cap the captions at two and a single-colour prompt reliably returns a mono-hue
+image, because polychrome was never described.
+
+- **Name every dominant hue**, not a fixed maximum, whenever colour mixing is
+  part of what the model should be able to do. Cap only when flat, limited
+  palettes are the point.
+- Promptable colour generalizes well outside the training histogram — on
+  pawlowski, violet fired at 89% coverage from 0.2% of the dataset's coloured
+  pixels. So a thin hue is not a reason to drop it from captions; it is the
+  reason to name it.
+- Polychrome at inference then requires naming the hues ("teal and amber" →
+  orange 43% / teal 38% / green 10%). A mono-hue output from a single-colour
+  prompt is the prompt's doing, not a model limit — check the prompt before
+  diagnosing the checkpoint.
+- Same rule for any other countable attribute the captioner enumerates
+  (subjects, panels, light sources): the cap in the instruction becomes the cap
+  in the output.
+
+Contrast with the deliberate case: when the palette *is* the style and should
+fire without being asked, omit colour entirely so it bakes (see the
+omit-to-bake palette rule). Decide which of the two you want before writing the
+prompt — the choice is not reversible without a recaption.
 
 ### 5. Render the script
 

@@ -50,6 +50,7 @@ bleed is fine or welcome (always-on deployment)>
 | <e.g. mask color> | keep variety (describe per-image) |
 | <e.g. the recurring character> | only when asked (name in captions) |
 | Same prompt twice → | <same signature look / different variant each time> |
+| **Trigger behaviour** | <label (load the LoRA when you want the look) / **switch** (must toggle per-prompt → needs a regularization set, decide now)> |
 
 ## Requirements
 

@@ -106,6 +106,24 @@ model:
 - Image editing model — requires paired dataset with `control_path`
 - Only use for image-editing LoRAs, not character/style
 
+## MiniMax-H3 (text-to-video)
+
+- `arch: "minimax_h3"` — **weights come from the Comfy-Org repo, not the path in
+  the upstream README** (the README is wrong; a launch against it fails on
+  download).
+- `quantize: false`.
+- Frame counts must sit on the VAE's **17n+5** grid (5, 22, 39, 56, …);
+  `auto_frame_count` snaps clips *down*, so verify what it snapped to.
+- Native canvas 1024×768 (4:3); native resolutions 480P/768P.
+- **Guidance-distilled**: there is no guidance scale, negative prompt or step
+  count at inference — on the fal endpoint or anywhere else. Every correction
+  has to live in captions, checkpoint choice, or LoRA scale, and LoRA scale runs
+  much higher than on image bases (~2.4–2.75, not ~1.0–1.4).
+- Deploys via `scripts/fal/h3_video_inference.py` → `minimax/h3/text-to-video/lora`.
+  fal **rewrites the prompt by default** (`prompt_expansion_mode: balanced`) and
+  its safety checker returns black video on a false positive — disable both.
+- Dataset prep: `video-lora-dataset-prep`.
+
 ## HiDream, OmniGen2, Qwen-Image, Wan (video)
 
 Available but niche. See `README.md` in ai-toolkit for details. Don't recommend unless user specifically names them or has clear use case.
@@ -155,12 +173,13 @@ sample from the base model before committing the run.
 | Chroma | fair | — | — | good | fair | Apache 2.0 | narrow |
 | FLUX.1-Kontext-dev | good | purpose-built (paired) | — | good | good | non-commercial | moderate |
 | Wan2.2 (video) | — | — | **yes** | good | fair | commercial-friendly | moderate |
+| MiniMax-H3 (video) | — | — | **yes** | good | fair | check per-use | fal (t2v LoRA endpoint) |
 | SDXL | weak | — | — | weak | fair | commercial-friendly | universal |
 
 How to apply a brief:
 
 1. **Lane first** (brief axes 3–4): edit intent → Qwen-Image-Edit /
-   Kontext / Klein ctrl_img only. Motion → Wan. Otherwise text-to-image.
+   Kontext / Klein ctrl_img only. Motion → Wan or MiniMax-H3 (H3 if the deploy target is fal's t2v LoRA endpoint). Otherwise text-to-image.
 2. **Hard filters** (brief MUSTs + constraints): text rendering MUST drops
    the "weak" column entries; commercial use drops non-commercial bases;
    the inference destination must actually host the arch (an unhosted arch

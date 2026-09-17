@@ -1,13 +1,16 @@
 ---
 name: ai-toolkit-fal-inference
-description: Run real-prompt inference on trained ai-toolkit Klein 9B base LoRAs via fal.ai's hosted Klein endpoint. Use whenever the user wants to test a trained LoRA against custom prompts WITHOUT provisioning a custom GPU pod — A/B comparing checkpoints, testing an artist's prompt against multiple versions, generating presentation samples, or validating a checkpoint against prompts that weren't in the training sample matrix. Triggers on phrases like "test this LoRA via fal", "run inference on fal", "generate with my v3 / v4 LoRA against this prompt", "A/B these checkpoints on fal", "send this LoRA to fal", "compare these LoRAs on the same prompt", or any request to make images from a local .safetensors against custom prompts. Distinct from `ai-toolkit-remote-launch` (which spins up a training pod) and from picking-from-existing-samples (which uses the training-config sample matrix). This skill is specifically for ad-hoc real-prompt inference on the fal hosted endpoint.
+description: Run real-prompt inference on trained ai-toolkit LoRAs via fal.ai's hosted endpoints — FLUX.2 Klein 9B base (t2i and base-edit/restyle), Krea-2 Turbo, FLUX.2 [dev], Ideogram V4, and MiniMax-H3 text-to-video. Use whenever the user wants to test a trained LoRA against custom prompts WITHOUT provisioning a custom GPU pod — A/B comparing checkpoints, testing an artist's prompt against multiple versions, generating presentation samples, or validating a checkpoint against prompts that weren't in the training sample matrix. Triggers on phrases like "test this LoRA via fal", "run inference on fal", "generate with my v3 / v4 LoRA against this prompt", "A/B these checkpoints on fal", "send this LoRA to fal", "compare these LoRAs on the same prompt", or any request to make images from a local .safetensors against custom prompts. Distinct from `ai-toolkit-remote-launch` (which spins up a training pod) and from picking-from-existing-samples (which uses the training-config sample matrix). This skill is specifically for ad-hoc real-prompt inference on the fal hosted endpoint.
 ---
 
 # AI Toolkit fal Inference
 
-Driver for `scripts/fal/inference.py` — runs LoRA inference on
-fal.ai's `fal-ai/flux-2/klein/9b/base/lora` endpoint so you can test trained
-checkpoints against real prompts without spinning up your own GPU pod.
+Driver for `scripts/fal/inference.py` (images) and
+`scripts/fal/h3_video_inference.py` (video) — runs LoRA inference on fal.ai's
+hosted endpoints so you can test trained checkpoints against real prompts
+without spinning up your own GPU pod. Five image bases are registered plus one
+video base; see the `--base` table under **Things to watch for**, and pick the
+one matching how the LoRA was trained.
 
 ## When you've been triggered
 
@@ -86,8 +89,11 @@ Before invoking, confirm:
 3. **Seeds** — explicit list (for reproducible A/B) or `--num-seeds N` for N
    random. **For A/B comparisons, ALWAYS use explicit seeds** so the same
    seed produces directly comparable images across LoRAs.
-4. **Optional overrides** — LoRA `--scale` (default 1.4, calibrated via 0.1-step strength sweep — see [fal strength sweep methodology] memory), `--guidance`,
-   `--steps`, `--image-size`. Default fal settings are usually fine.
+4. **Base** — which endpoint the LoRA was trained for (`--base`). Read it off
+   the training config's `model.name_or_path` / `arch`; don't guess.
+5. **Optional overrides** — LoRA `--scale` (per-base default; sweep it before
+   trusting it), `--guidance`, `--steps`, `--image-size`. Default fal settings
+   are usually fine.
 
 If anything is missing, ask once. Don't proceed on guesses — wrong prompt
 means wrong test.
@@ -126,7 +132,7 @@ The main venv doesn't have it. Always invoke with
 
 | Field | Default | Why |
 |---|---|---|
-| `--scale` | **1.4** | Calibrated via 0.1-step strength sweep on Klein 9B base (see [fal strength sweep methodology] memory). Below ~1.3 the LoRA fires without arrow/callout grammar; at 1.4 full V1-style annotation grammar (arrows + multi-element labels + iridescent variant) lands without compositional crowding. Above ~1.7 labels start clipping the frame. Override per-call when an aesthetic goal calls for it (1.0 for minimal LoRA, 1.5-1.6 for max annotation density). |
+| `--scale` | **per-base** (klein-9b 1.4) | Each base has its own default and each LoRA its own optimum — see the `--base` table. Klein 9B: calibrated via 0.1-step strength sweep on Klein 9B base (see [fal strength sweep methodology] memory). Below ~1.3 the LoRA fires without arrow/callout grammar; at 1.4 full V1-style annotation grammar (arrows + multi-element labels + iridescent variant) lands without compositional crowding. Above ~1.7 labels start clipping the frame. Override per-call when an aesthetic goal calls for it (1.0 for minimal LoRA, 1.5-1.6 for max annotation density). |
 | `--guidance` | 5.0 | fal endpoint default |
 | `--steps` | 28 | fal endpoint default |
 | `--image-size` | `landscape_4_3` | fal endpoint default. Override with WxH like `1024x1024` for square. |
@@ -242,7 +248,8 @@ of these 10 LoRAs is best" is capability sampling above.
 
 ### Tuning LoRA strength
 
-Strength sweeps are inherently a PINNED-SEED operation — you want the same
+**Do this before ranking checkpoints, not after** — see the first bullet under
+**Things to watch for**. Strength sweeps are inherently a PINNED-SEED operation — you want the same
 noise at each scale so the only variable is strength:
 
 ```bash
@@ -261,6 +268,17 @@ Use 0.1 increments in the calibrated useful band; see the
 Klein-9B calibration (default scale 1.4).
 
 ## Things to watch for
+
+- **Sweep strength BEFORE comparing checkpoints — always, on every base.**
+  Checkpoint ranking at an uncalibrated scale measures the scale, not the
+  checkpoint. On pawlowski-kineform three fal batches and ~$7 went into ranking
+  checkpoints at scale 1.0; step 1250 "clearly beat" 1750 there, and the two
+  came out roughly equal once scale (2.75) and prompt dialect were corrected.
+  The order is: **(1) pick one mid-run checkpoint, (2) scale-sweep it with
+  pinned seeds, (3) rank all checkpoints at the scale that sweep found.** This
+  is not the same as Gate A in the sample-reviewer — that one is about *which
+  endpoint* you judge on; this is about *which knob you calibrate first* once
+  you're there. Both are cheap; both have reversed a verdict.
 
 - **A distilled endpoint can strip a fine register at scale 1.0 — sweep
   before concluding it wasn't trained.** Krea-2-Turbo is the standing case:
@@ -286,16 +304,29 @@ Klein-9B calibration (default scale 1.4).
   3+ seeds is the floor. For ranking decisions, capability sample with 10+
   images per model. "Seed-42 of checkpoint X looks great" is a starting
   point, not a conclusion.
-- **Pick the endpoint with `--base` to match how the LoRA was trained.** Two
-  bases are supported (default `klein-9b` for back-compat):
-  - `--base klein-9b` → `fal-ai/flux-2/klein/9b/base/lora` (guidance default 5.0)
-    — for LoRAs trained against `black-forest-labs/FLUX.2-klein-base-9B`.
-  - `--base flux2-dev` → `fal-ai/flux-2/lora` (guidance default 2.5) — for LoRAs
-    trained against `black-forest-labs/FLUX.2-dev` (arch `flux2`). TITLES holds
-    a commercial license for Flux.2-dev, so dev LoRAs are shippable.
-  Check the training config's `model.name_or_path` / `arch` and set `--base`
-  accordingly — a base/endpoint mismatch loads the LoRA incorrectly. Note dev's
-  ideal `--scale` is uncalibrated; the 1.4 default is just a sweep starting point.
+- **Pick the endpoint with `--base` to match how the LoRA was trained.** A
+  base/endpoint mismatch loads the LoRA incorrectly or silently no-ops. Check
+  the training config's `model.name_or_path` / `arch` and set `--base`. Five
+  bases are registered in `BASES` (default `klein-9b` for back-compat):
+
+  | `--base` | endpoint | default scale | notes |
+  |---|---|---|---|
+  | `klein-9b` | `fal-ai/flux-2/klein/9b/base/lora` | 1.4 | t2i for `FLUX.2-klein-base-9B` LoRAs. guidance 5.0, negatives supported. |
+  | `klein-9b-base-edit` | `fal-ai/flux-2/klein/9b/base/edit/lora` | 1.4 | **image-to-image**; the deploy path for `ctrl_img` restyle LoRAs. Requires `--image`. A t2i endpoint cannot restyle — sa-mayer shipped here. |
+  | `krea2-turbo` | `fal-ai/krea-2/turbo/lora` | 1.25 | Krea2 LoRAs **train on Raw, deploy on Turbo**. No guidance/steps/negative in the schema. Always Turbo-test before shipping. |
+  | `flux2-dev` | `fal-ai/flux-2/lora` | 1.0 | `arch: flux2`. guidance 2.5, **no negative_prompt field** (fal drops it silently) — text-leak control is scale ≤1.0 only. TITLES holds a commercial license. |
+  | `ideogram-v4` | `ideogram/v4/lora` | 1.0 | `arch: ideogram4`. No guidance/steps; `expansion_model` `"None"` tests raw LoRA behavior, `"Medium"`/`"Large"` runs Magic Prompt (the real deploy path). |
+
+  Video LoRAs do NOT go through this script — see **Video (MiniMax-H3)** below.
+
+- **The `--scale` default is per-base, not universal.** The 1.4 figure is the
+  Klein 9B calibration; every other base has its own, and every *LoRA* has its
+  own within that. Treat the table's number as a sweep starting point, never as
+  a verdict-grade setting. Measured spreads so far: Klein 1.4, Flux.2-dev ~1.0
+  (over-drives sooner — text-leak ~1.25, collapse 1.5–2.0), Krea2-Turbo 1.0–1.6
+  depending on whether a fine texture register has to survive distillation,
+  MiniMax-H3 **2.75** (1.0 is far too weak and reads as generic).
+
 - **Errors are logged per-image, not fatal.** A flaky inference job won't
   abort the whole batch; the failed job appears in `manifest.json.errors`
   and the rest of the batch completes.
@@ -318,19 +349,63 @@ Klein-9B calibration (default scale 1.4).
     takes the kohya `loras:[{path,scale}]` schema; convention rules are
     per-endpoint.)
 
+## Video (MiniMax-H3) — a separate script
+
+Video LoRAs run through `scripts/fal/h3_video_inference.py`, not `inference.py`.
+They are split on purpose: the image script speaks `image_size` / `num_images`,
+while the H3 schema speaks `resolution` / `aspect_ratio` / `duration` and has
+**no `guidance_scale`, `num_inference_steps` or `negative_prompt` at all** —
+H3 is guidance-distilled. Every fix has to live in captions, checkpoint choice
+or scale.
+
+```bash
+.venv-captioning/bin/python scripts/fal/h3_video_inference.py \
+    --lora s1750:output/<run>/<run>_000001750.safetensors \
+    --prompt "<composition clause>, <count> <1-2 colours> forms <mode>, <trigger>" \
+    --scale 2.75 --resolution 768P --aspect-ratio 4:3 --duration 5 \
+    --out-dir output/fal_h3_<run>
+```
+
+Settings that are not optional (each one cost a batch to learn):
+
+| Flag / field | Use | Why |
+|---|---|---|
+| `--expansion` | leave unset (null) | Defaults to `balanced` **on the endpoint**, i.e. fal rewrites your prompt before generation. The response's `expanded_prompt` shows what was actually sent. |
+| `--safety-checker` | leave OFF | Defaults true on the endpoint and returns a **black video** on a false positive. |
+| `--resolution` | `768P` | Only 480P and 768P are native; 2K/4K just upscale a 768P base. |
+| `--aspect-ratio` | match the training canvas | `4:3` for a 1024×768 LoRA — also H3's own native canvas. |
+| `--duration` | 5 | Endpoint minimum; training clips are usually shorter (4.46s on pawlowski) and cannot be matched exactly. |
+| `--scale` | **sweep it, expect a high number** | H3 sits far above the image bases: 1.0 reads as generic dark-and-glowy, the style arrives ~2.4–2.5, and 2.75 was the reliable choice across seeds. Range is 0–4. |
+
+Cost is per second of output: 480P $0.0625 · 768P $0.075 · 2K $0.1625 ·
+4K $0.20. A 5s 768P clip is ~$0.375 — ~25× an image, so the "just run 10 of
+them" reflex from the image path is a $4 decision here. The script prints an
+estimate and asks for confirmation unless `--yes` is passed.
+
+**Trigger-is-not-a-switch check.** Before writing deploy notes for a video LoRA,
+run the trigger alone and a no-trigger control. On pawlowski the trigger alone
+produced nothing and the no-trigger control still carried the full style — the
+style was bound to the model, not the token. That is harmless for "load the LoRA
+when you want the look" (and it makes the model immune to fal's prompt
+rewriting), but it means the look cannot be toggled per-prompt, and the fix is a
+**regularization dataset** of off-style clips captioned without the trigger —
+*not* caption dropout, which makes the style more unconditional, not less.
+
 ## When NOT to use this skill
 
 - The user wants to PICK a checkpoint from existing training samples → use
   `ai-toolkit-sample-reviewer` instead (works from the local sample images
   the trainer already produced).
 - The user wants to TRAIN a new LoRA → `ai-toolkit-remote-launch`.
-- The model is neither a Klein 9B base LoRA nor a Flux.2-dev LoRA (e.g. Wan22
-  video, Flux.1 dev, Z-Image Turbo). The script supports `--base klein-9b` and
-  `--base flux2-dev` only; other models need their own fal endpoints added to
-  the `BASES` registry in `scripts/fal/inference.py`.
+- The model is a **video** LoRA — see the MiniMax-H3 section below; Wan2.2
+  has no wired endpoint yet.
+- The base isn't in the `BASES` table above (e.g. Flux.1 dev, Z-Image Turbo).
+  Add it to the `BASES` registry in `scripts/fal/inference.py` first — a
+  one-dict change — rather than approximating with a neighbouring endpoint.
 
 ## Related skills
 
 - `ai-toolkit-remote-launch` / `monitor` / `teardown` — training pipeline
 - `ai-toolkit-sample-reviewer` — pick a checkpoint from training samples
 - `flux2-klein-prompter` — write prompts that play well with Klein
+- `video-lora-dataset-prep` — clip prep and frame math for video LoRAs (H3, Wan)

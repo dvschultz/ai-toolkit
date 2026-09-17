@@ -14,7 +14,8 @@ description: >
   holds the sequence, the go/no-go gates, and the handoffs, and invokes the
   stage skills (ai-toolkit-model-brief, ai-toolkit-lora-config, ai-toolkit-gemini-captioner,
   style-vs-content-caption-auditor, ai-toolkit-dataset-diagnostics,
-  ai-toolkit-remote-launch/monitor/teardown, ai-toolkit-sample-reviewer) at
+  video-lora-dataset-prep, ai-toolkit-remote-launch/monitor/teardown,
+  ai-toolkit-sample-reviewer, ai-toolkit-fal-inference) at
   the right moments. For a single stage (just a config, just a caption
   audit, just checking on a running pod), invoke that stage's skill directly
   instead.
@@ -50,6 +51,8 @@ launch decision, the checkpoint pick).
                  (or local `python run.py` if the user chose local)
 5. Monitor    -> ai-toolkit-remote-monitor  + ai-toolkit-sample-reviewer (loop)
 6. Pick       -> ai-toolkit-sample-reviewer         [GATE: user picks checkpoint(s)]
+   (6b. Deploy -> ai-toolkit-fal-inference: calibrate scale, then rank,
+        then write deploy notes — see Stage 6b)
 7. Teardown   -> ai-toolkit-remote-teardown        [confirm: nothing left billing]
 8. v2 loop    -> if the verdict isn't a clean winner: diagnose, re-enter at
                  the stage the diagnosis points to (see "The v2 loop")
@@ -68,7 +71,7 @@ Establish, by asking only what you can't infer:
 - **Goal**: style / character / subject / motion LoRA? What should the
   trigger do?
 - **Dataset**: where are the images/videos? How many? Captioned yet?
-- **Target model**: Flux.2 Klein, Qwen-Image-Edit, Wan2.2, SDXL, ...?
+- **Target model**: Flux.2 Klein, Qwen-Image-Edit, Wan2.2, MiniMax-H3, SDXL, ...?
   Returning trainers usually have a go-to (check memory / ask); for a
   first-timer don't ask at all — let Stage 1 pick from the goal, licensing,
   and budget, and present the choice in outcome terms.
@@ -256,6 +259,23 @@ outranks the rubric.
 
 If the reviewer's verdict is "no checkpoint is acceptable", don't force a
 pick — proceed to Stage 7 teardown and then "The v2 loop" below.
+
+## Stage 6b — Deploy validation  ·  `ai-toolkit-fal-inference`
+
+Whenever the model ships somewhere other than the trainer (fal, TITLES, any
+hosted endpoint), the checkpoint pick isn't finished until it has been rendered
+where it will actually run. Order matters and is cheap to get wrong:
+
+1. **Match the endpoint to the base** — five image bases plus MiniMax-H3 video
+   are registered; a mismatch loads the LoRA wrong or silently no-ops.
+2. **Calibrate scale first**, on one checkpoint, pinned seeds. Ranking
+   checkpoints at an uncalibrated scale measures the scale (pawlowski: three
+   batches and ~$7 on a ranking that dissolved at the corrected scale).
+3. **Then rank** the finalists at that scale, in the captions' dialect.
+4. **Then Gate B** — the artist sees the renders beside their references.
+5. **Then** write `briefs/<project>-deploy-notes.md`: endpoint, scale, dialect,
+   aspect/resolution, any endpoint flags that must be off (fal's prompt
+   expansion and safety checker both default ON and both have cost a batch).
 
 ## Stage 7 — Teardown  ·  invoke `ai-toolkit-remote-teardown`
 

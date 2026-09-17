@@ -22,6 +22,51 @@ shnzng a red bicycle
 
 If the style LoRA is working, this produces the target style. If not, it produces whatever the base model defaults to (probably a photo).
 
+## The second rule: minimal, but in the captions' dialect
+
+Minimal does not mean free-form. Write sample prompts in the **same dialect the
+captions use** — the trigger in the position the captions put it, the structural
+clauses every caption carries, and roughly the caption's length. Strip the
+*style description*; keep the *grammar*.
+
+The two rules only look like they conflict. "Minimal" is about not handing the
+base model the answer; "dialect" is about addressing the model in the language
+it was conditioned in. A prompt can be short and still off-dialect, and an
+off-dialect prompt under-fires the LoRA — which then gets misread as a weak
+checkpoint, a bad scale, or a failed run.
+
+Concretely, if captions are shaped:
+
+```
+[composition clause], [count] [1-2 colours] form(s) [mode], k1n3f0rm
+```
+
+then a sample prompt must put `k1n3f0rm` **last** after a comma, carry a
+composition clause, use one motion word from the closed set the captions use,
+and run about as long as a caption:
+
+```yaml
+# Right — minimal content, caption grammar
+- "off-centre in the upper frame, a cluster of teal and amber forms roiling, k1n3f0rm"
+
+# Wrong — trigger fronted, no composition clause; under-fires the LoRA
+- "k1n3f0rm a cluster of teal and amber forms"
+```
+
+On pawlowski-kineform the sample prompts were written trigger-first while every
+caption put the trigger last. The training samples were a weak signal for the
+whole run, and the error carried into the first fal batches — three batches and
+~$7 spent ranking checkpoints on prompts the model had never been addressed in.
+
+**Derive the dialect from the captioner script, not from memory.** Read the
+caption template (or five actual `.txt` files) before writing sample prompts,
+and write the deploy prompts in the same dialect later — the deploy notes should
+state the dialect explicitly so whoever ships the model doesn't re-invent it.
+
+**A rigid dialect is also a warning.** If sample prompts can only fire the LoRA
+inside one narrow phrasing, that constraint ships with the model. Decide at the
+brief stage whether that's acceptable, and say so in the deploy notes.
+
 ## Templates by LoRA type
 
 ### Character LoRA sample prompts

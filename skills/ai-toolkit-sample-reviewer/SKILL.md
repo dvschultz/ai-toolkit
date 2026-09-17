@@ -148,7 +148,18 @@ See `references/evaluation-criteria.md` for the full rubric per LoRA type. Score
 - **Bleed** — do *non*-triggered control prompts still look like the base model? If they pick up the dataset style, the LoRA is over-baked.
 - **Honors artist intent** — if the config or YAML comments specify texture/grain/imperfection, did it survive? (this is the most-missed criterion)
 
-### Step 5b — Two gates before you name anything a winner
+**When the A/B style judge saturates, switch metrics.** Past roughly 8/9 on a
+pairwise style score the judge stops discriminating — every late checkpoint
+"wins" and the ranking goes flat. That is a ceiling in the instrument, not a
+tie between checkpoints. Switch to a measured detail metric: Laplacian variance
+(mean *and* max) over each checkpoint's samples against the same statistic over
+the dataset. It separates checkpoints the judge calls equal, and it catches the
+specific failure the judge is blindest to — fine registers that top out well
+below the dataset (pawlowski plateaued at ~55% of dataset Laplacian energy, with
+the dataset's filament/spark register at max 108 vs the samples' 45, while the
+style judge kept reporting wins).
+
+### Step 5b — Three gates before you name anything a winner
 
 **Gate A — on a distilled-deploy base, the verdict happens on the
 deployment endpoint, not on training samples.** Krea2 is the standing case:
@@ -167,6 +178,24 @@ fine registers are frequently scale-gated and simply absent at 1.0), score
 those renders, and pick from them. Budget a few dollars and ~15 minutes;
 it is a rounding error against the run and it has reversed the verdict
 twice now.
+
+**Gate A2 — calibrate scale before you rank checkpoints, on any endpoint.**
+Gate A says *where* the verdict happens; this says *what you tune first once
+you're there*. Checkpoint ranking at an uncalibrated scale measures the scale,
+not the checkpoint. Pick ONE mid-run checkpoint, pinned-seed sweep it, then
+rank every candidate at the scale that sweep found. On pawlowski-kineform three
+fal batches and ~$7 ranked checkpoints at scale 1.0; step 1250 "clearly beat"
+1750 there, and the two came out roughly equal once scale (2.75) and prompt
+dialect were matched. Applies to non-distilled bases too — H3 is guidance-
+distilled with no train/deploy split and still needed 2.75.
+
+**Prompt dialect is part of the calibration.** Render the comparison in the
+*captions'* dialect — trigger in the position the captions put it, the clauses
+every caption carries, roughly the caption's length. An off-dialect prompt
+under-fires the LoRA and the deficit gets misattributed to the checkpoint. If
+the training sample prompts were written off-dialect (a common bug — pawlowski's
+put the trigger first when every caption puts it last), the training samples are
+themselves a weak signal and the endpoint renders are the real evidence.
 
 **Gate B — the artist sees outputs next to their own references before you
 write a recipe.** Build a contact sheet (samples or endpoint renders vs the

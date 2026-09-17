@@ -150,6 +150,33 @@ the mismatch that surfaces as disappointment at Stage 6.
 If no dataset exists, invert: emit a "what to collect" list derived from
 the must-haves.
 
+## Step 4b — Is the trigger a switch, or just a label?
+
+Ask it explicitly, once, and record the answer: **does the look have to be
+toggleable per-prompt, or is "load the LoRA when you want it" enough?**
+
+The default outcome of omit-to-bake is that the style binds to the *model*, not
+to the *token*. Both symptoms show up together at review time:
+
+- the trigger alone produces nothing (it isn't a handle you can pull), and
+- a no-trigger control still carries the full style (it fires unconditionally).
+
+For most single-purpose style models that is fine, and it has an upside — an
+unconditional style is immune to a deploy endpoint that rewrites prompts (fal's
+`prompt_expansion_mode`). But it means the look cannot be toggled, dialled, or
+stacked with another LoRA per-prompt.
+
+If the artist needs a real switch, that is a **dataset** decision made here, not
+a caption tweak made later: it requires a **regularization set** of off-style
+material captioned *without* the trigger, so the model has a conditioned
+contrast to learn. Explicitly **not** caption dropout — dropping captions makes
+the style more unconditional, which is the opposite of the goal.
+
+Record the ruling in the brief (Embedded vs promptable → "Trigger behaviour"),
+and add the check to the review plan: run the trigger alone and a no-trigger
+control before writing deploy notes. Pawlowski-kineform discovered this at
+review, after both runs, when it was a recaption-plus-rerun away.
+
 ## Step 5 — Write the brief
 
 Fill `references/brief-template.md` and write it to
