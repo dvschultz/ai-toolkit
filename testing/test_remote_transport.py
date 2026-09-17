@@ -131,7 +131,15 @@ class TestCommandBuilders(unittest.TestCase):
         with mock.patch("os.path.exists", return_value=False):
             self.assertEqual(contract.ssh_identity_args(), [])
 
-    def test_ssh_run_passes_text_capture_timeout(self):
+    def test_ssh_run_decodes_leniently_and_captures(self):
+        """ssh_run must decode with errors='replace', NOT text=True.
+
+        Remote log tails carry tqdm ANSI escapes and other non-UTF-8 bytes;
+        strict decoding (what bare text=True gives) raises UnicodeDecodeError
+        and takes the whole monitor pipeline down with it. Asserting the
+        encoding/errors pair keeps a future "simplify to text=True" from
+        silently reintroducing that crash.
+        """
         captured = {}
         def runner(cmd, **kw):
             captured["cmd"] = cmd
@@ -140,9 +148,19 @@ class TestCommandBuilders(unittest.TestCase):
         res = transport.ssh_run(EP, "echo hi", runner=runner)
         self.assertEqual(res.stdout, "ok")
         self.assertEqual(captured["cmd"][-1], "echo hi")
-        self.assertTrue(captured["text"])
+        self.assertEqual(captured["encoding"], "utf-8")
+        self.assertEqual(captured["errors"], "replace")
+        self.assertNotIn("text", captured)
         self.assertTrue(captured["capture_output"])
         self.assertEqual(captured["timeout"], transport.SSH_TIMEOUT)
+
+    def test_ssh_run_survives_non_utf8_output(self):
+        """The regression this guards: undecodable bytes must not raise."""
+        def runner(cmd, **kw):
+            raw = b"loss: 0.42 \xff\xfe tqdm-junk"
+            return proc(raw.decode(kw["encoding"], errors=kw["errors"]))
+        res = transport.ssh_run(EP, "tail log", runner=runner)
+        self.assertIn("loss: 0.42", res.stdout)
 
     def test_build_rsync_up_includes_filter_excludes(self):
         cmd = transport.build_rsync_up("/data/set/", EP, "/workspace/runs/r/dataset/")
