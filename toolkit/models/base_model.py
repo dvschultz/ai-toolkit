@@ -101,6 +101,9 @@ class BaseModel:
     # rename LoRA keys transformer. <-> diffusion_model. (the ComfyUI-standard
     # prefix) on save/load
     lora_keys_use_comfy_prefix = False
+    # text-generating models: the trainer runs train_llm_accumulation (model-owned
+    # loss via get_llm_loss) instead of the diffusion step; no vae / text encoder
+    is_llm = False
 
     def __init__(
             self,
@@ -280,6 +283,28 @@ class BaseModel:
     @property
     def text_embedding_space_version(self):
         return self.arch
+
+    def get_latent_space_version(self) -> str:
+        """Latent cache key. Override to invalidate caches when model_kwargs change what gets cached."""
+        if self.model_config.latent_space_version is not None:
+            return self.model_config.latent_space_version
+        if self.latent_space_version is not None:
+            return self.latent_space_version
+        if self.is_xl:
+            return 'sdxl'
+        if self.is_v3:
+            return 'sd3'
+        if self.is_auraflow:
+            return 'sdxl'
+        if self.is_flux:
+            return 'flux1'
+        if self.model_config.is_pixart_sigma:
+            return 'sdxl'
+        return self.model_config.arch
+
+    def get_text_embedding_space_version(self) -> str:
+        """Text embedding cache key. Override like get_latent_space_version."""
+        return self.text_embedding_space_version
 
     def get_bucket_divisibility(self):
         if self.vae is None:
@@ -568,7 +593,11 @@ class BaseModel:
                             quad_count=4
                         )
 
-                    if self.sample_prompts_cache is not None:
+                    if self.is_llm:
+                        # text-generating models take the prompt and media directly
+                        conditional_embeds = None
+                        unconditional_embeds = None
+                    elif self.sample_prompts_cache is not None:
                         conditional_embeds = self.sample_prompts_cache[i]['conditional'].to(self.device_torch, dtype=self.torch_dtype)
                         unconditional_embeds = self.sample_prompts_cache[i]['unconditional'].to(self.device_torch, dtype=self.torch_dtype)
                     else:
@@ -721,10 +750,12 @@ class BaseModel:
                             raise ValueError(
                                 "Refiner is only supported for XL models")
 
-                    conditional_embeds = conditional_embeds.to(
-                        self.device_torch, dtype=self.unet.dtype)
-                    unconditional_embeds = unconditional_embeds.to(
-                        self.device_torch, dtype=self.unet.dtype)
+                    if conditional_embeds is not None:
+                        conditional_embeds = conditional_embeds.to(
+                            self.device_torch, dtype=self.unet.dtype)
+                    if unconditional_embeds is not None:
+                        unconditional_embeds = unconditional_embeds.to(
+                            self.device_torch, dtype=self.unet.dtype)
 
                     img = self.generate_single_image(
                         pipeline,
@@ -1451,7 +1482,7 @@ class BaseModel:
             'vae': {
                 'training': self.vae.training,
                 'device': self.vae.device,
-            },
+            } if self.vae is not None else None,
             'unet': {
                 'training': self.unet.training,
                 'device': self.unet.device,
@@ -1468,7 +1499,7 @@ class BaseModel:
                     # todo there has to be a better way to do this
                     'requires_grad': te_has_grad
                 })
-        else:
+        elif self.text_encoder is not None:
             te_has_grad = self.get_te_has_grad()
 
             self.device_state['text_encoder'] = {
@@ -1520,11 +1551,12 @@ class BaseModel:
         self.device_state = None
 
     def set_device_state(self, state):
-        if state['vae']['training']:
-            self.vae.train()
-        else:
-            self.vae.eval()
-        self.vae.to(state['vae']['device'])
+        if self.vae is not None and state.get('vae') is not None:
+            if state['vae']['training']:
+                self.vae.train()
+            else:
+                self.vae.eval()
+            self.vae.to(state['vae']['device'])
         if state['unet']['training']:
             self.unet.train()
         else:
@@ -1552,7 +1584,7 @@ class BaseModel:
                     encoder.to(state['text_encoder']['device'])
                     encoder.requires_grad_(
                         state['text_encoder']['requires_grad'])
-        else:
+        elif self.text_encoder is not None:
             if state['text_encoder']['training']:
                 self.text_encoder.train()
             else:
@@ -1646,7 +1678,7 @@ class BaseModel:
         if isinstance(self.text_encoder, list):
             for encoder in self.text_encoder:
                 encoder.to(*args, **kwargs)
-        else:
+        elif self.text_encoder is not None:
             self.text_encoder.to(*args, **kwargs)
 
     def component_load_kwargs(self, role: str = "transformer", dtype=None):
