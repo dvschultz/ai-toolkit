@@ -97,6 +97,9 @@ already int8-ConvRot + nvfp4 quantized, so leave `quantize`/`quantize_te` off.
 | Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
 |---|---|---|---|---|
 | Zeta Chroma | `lodestones/Zeta-Chroma` | `arch: zeta_chroma` | — | — |
+| YuE2 | `m-a-p/YuE2-3B` | — | — | — |
+
+YuE2 note: the official audio-to-token encoder is unreleased; training uses the community tokenizer by Kytra ([@sin_ceriously](https://x.com/sin_ceriously)), `Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4`.
 
 ## Installation
 
