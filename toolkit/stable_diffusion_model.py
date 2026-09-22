@@ -301,6 +301,11 @@ class StableDiffusion:
     @property
     def is_ssd(self):
         return self.arch == 'ssd'
+
+    @property
+    def load_rgba(self) -> bool:
+        # no legacy arch has an RGBA VAE
+        return False
     
     @property
     def is_v3(self):
@@ -329,6 +334,28 @@ class StableDiffusion:
     @property
     def text_embedding_space_version(self):
         return self.arch
+
+    def get_latent_space_version(self) -> str:
+        """Latent cache key. Override to invalidate caches when model_kwargs change what gets cached."""
+        if self.model_config.latent_space_version is not None:
+            return self.model_config.latent_space_version
+        if self.latent_space_version is not None:
+            return self.latent_space_version
+        if self.is_xl:
+            return 'sdxl'
+        if self.is_v3:
+            return 'sd3'
+        if self.is_auraflow:
+            return 'sdxl'
+        if self.is_flux:
+            return 'flux1'
+        if self.model_config.is_pixart_sigma:
+            return 'sdxl'
+        return self.model_config.arch
+
+    def get_text_embedding_space_version(self) -> str:
+        """Text embedding cache key. Override like get_latent_space_version."""
+        return self.text_embedding_space_version
     
     @property
     def unet_unwrapped(self):
