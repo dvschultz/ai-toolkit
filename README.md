@@ -25,6 +25,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Chroma Radiance | — | `arch: chroma_radiance` | — | 24GB |
 | Qwen-Image | `Qwen/Qwen-Image` | `arch: qwen_image` | `train_lora_qwen_image_24gb.yaml` | 24GB |
 | Qwen-Image-2512 | `Qwen/Qwen-Image-2512` | `arch: qwen_image` | — | 24GB |
+| Qwen-Image-2.1 | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` | — | 24GB |
 | HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | `arch: hidream` | `train_lora_hidream_48.yaml` | 48GB |
 | HiDream-O1 | `HiDream-ai/HiDream-O1-Image` | `arch: hidream_o1` | — | 48GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | `arch: omnigen2` | `train_lora_omnigen2_24gb.yaml` | 24GB |
@@ -45,6 +46,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Z-Image L2P | `zhen-nan/L2P` | `arch: zimage_l2p` | — | — |
 | Krea 2 Turbo | `krea/Krea-2-Turbo` | `arch: krea2` | — | 24GB |
 | Ideogram 4 FP8 | `ideogram-ai/ideogram-4-fp8` | `arch: ideogram4` | — | — |
+| Ming-Image 0.1 Design | `inclusionAI/Ming-Image-0.1-Design` | `arch: ming_image` | — | — |
 | Mage-Flow | `microsoft/Mage-Flow-Base` | `arch: mageflow` | — | — |
 
 ### Instruction / Edit
@@ -55,6 +57,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Qwen-Image-Edit | `Qwen/Qwen-Image-Edit` | `arch: qwen_image_edit` | `train_lora_qwen_image_edit_32gb.yaml` | 32GB |
 | Qwen-Image-Edit-2509 | `Qwen/Qwen-Image-Edit-2509` | `arch: qwen_image_edit_plus` | `train_lora_qwen_image_edit_2509_32gb.yaml` | 32GB |
 | Qwen-Image-Edit-2511 | `Qwen/Qwen-Image-Edit-2511` | `arch: qwen_image_edit_plus:2511` | — | 32GB |
+| Qwen-Image-2.1 | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` | — | 24GB |
 | HiDream-E1-1 | `HiDream-ai/HiDream-E1-1` | `arch: hidream_e1` | — | 48GB |
 | Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | 24GB |
 | Boogu Image Edit | `Boogu/Boogu-Image-0.1-Edit` | `arch: boogu_image_edit` | — | 24GB |
@@ -75,6 +78,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Wan 2.2 TI2V 5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | `arch: wan22_5b` | — | 24GB |
 | LTX-2 | `Lightricks/LTX-2` | `arch: ltx2` | — | — |
 | LTX-2.3 | `Lightricks/LTX-2.3` | `arch: ltx2` | — | — |
+| LTX-2.5 | `Lightricks/LTX-2.5` | `arch: ltx2` | — | — |
 | MiniMax-H3 | `Comfy-Org/MiniMax-H3` [^h3] | `arch: minimax_h3` (also `minimax_h3_ref2va`, `minimax_h3_vsa`) | — | — |
 
 [^h3]: Use the **Comfy-Org repack**, not `MiniMaxAI/MiniMax-H3`. A hub-style
@@ -91,6 +95,15 @@ already int8-ConvRot + nvfp4 quantized, so leave `quantize`/`quantize_te` off.
 |---|---|---|---|---|
 | Ace Step 1.5 | `ACE-Step/Ace-Step1.5` | `arch: ace_step_15` | — | — |
 | Ace Step 1.5 XL | `ACE-Step/acestep-v15-xl-base` | `arch: ace_step_15_xl` | — | — |
+| YuE2 | `m-a-p/YuE2-3B` | `arch: yue2` | — | — |
+
+YuE2 training uses the community tokenizer by Kytra ([@sin_ceriously](https://x.com/sin_ceriously)), [`Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4`](https://huggingface.co/Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4), because the official audio-to-token encoder is unreleased.
+
+### LLM
+
+| Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
+|---|---|---|---|---|
+| Qwen2.5-Omni | `Qwen/Qwen2.5-Omni-7B` | `arch: qwen25_omni` | — | — |
 
 ### Experimental
 
@@ -436,10 +449,10 @@ Everything else should work the same including layer targeting.
 
 If you enjoy my projects or use them commercially, please consider sponsoring me. Every bit helps! 💖
 
-<a href="https://ostris.com/sponsors" target="_blank"><img src="https://ostris.com/wp-content/uploads/2025/05/support-banner2.png" alt="Support my work" style="max-width:100%;height:auto;"></a>
+<a href="https://ostris.com/support" target="_blank"><img src="https://ostris.com/wp-content/uploads/2025/05/support-banner2.png" alt="Support my work" style="max-width:100%;height:auto;"></a>
 
 ### Current Sponsors
 
 All of these people / organizations are the ones who selflessly make this project possible. Thank you!!
 
-<a href="https://ostris.com/sponsors"><img src="https://ostris.com/sponsors.svg" alt="Sponsors" style="width:100%;height:auto;"></a>
+<a href="https://ostris.com/support"><img src="https://ostris.com/sponsors.svg" alt="Sponsors" style="width:100%;height:auto;"></a>
