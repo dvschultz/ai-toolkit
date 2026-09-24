@@ -19,7 +19,7 @@ from tqdm import tqdm
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection, SiglipImageProcessor
 
 from toolkit.audio.preserve_pitch import time_stretch_preserve_pitch
-from toolkit.basic import flush, value_map
+from toolkit.basic import UnusableFileError, flush, value_map
 from toolkit.buckets import get_bucket_for_image_size, get_resolution
 from toolkit.config_modules import ControlTypes
 from toolkit.control_generator import ControlGenerator
@@ -234,7 +234,7 @@ class BucketsMixin:
         # for file_item in enumerate(file_list):
         for idx, file_item in enumerate(file_list):
             file_item: 'FileItemDTO' = file_item
-            if self.is_audio_model:
+            if file_item.is_audio_model:
                 bucket_key = f"{file_item.width}ms"
                 if bucket_key not in self.buckets:
                     self.buckets[bucket_key] = Bucket(file_item.width, 1)
@@ -423,11 +423,20 @@ class CaptionProcessingDTOMixin:
                 # drop the caption
                 return ''
 
-        # get tokens
-        token_list = raw_caption.split(',')
+        # tag-style token ops (dropout / shuffle) split on commas; anything else keeps the
+        # text exactly as written (splitting and re-joining with ", " doubled the space after
+        # every comma in prose captions)
+        do_token_dropout = (
+            self.dataset_config.token_dropout_rate > 0
+            and not short_caption
+            and not self.dataset_config.cache_text_embeddings
+        )
+        token_list = None
+        if do_token_dropout or self.dataset_config.shuffle_tokens:
+            token_list = [t.strip() for t in raw_caption.split(',')]
 
         # handle token dropout
-        if self.dataset_config.token_dropout_rate > 0 and not short_caption and not self.dataset_config.cache_text_embeddings:
+        if do_token_dropout:
             new_token_list = []
             keep_tokens: int = self.dataset_config.keep_tokens
             for idx, token in enumerate(token_list):
@@ -448,7 +457,7 @@ class CaptionProcessingDTOMixin:
             random.shuffle(token_list)
 
         # join back together
-        caption = ', '.join(token_list)
+        caption = ', '.join(token_list) if token_list is not None else raw_caption
         caption = inject_trigger_into_prompt(caption, trigger, to_replace_list, add_if_not_present)
 
         if self.dataset_config.random_triggers:
@@ -467,7 +476,7 @@ class CaptionProcessingDTOMixin:
 
         if self.dataset_config.shuffle_tokens:
             # shuffle again
-            token_list = caption.split(',')
+            token_list = [t.strip() for t in caption.split(',')]
             random.shuffle(token_list)
             caption = ', '.join(token_list)
         if caption == '':
@@ -922,7 +931,13 @@ class ImageProcessingDTOMixin:
             np_img = np_img[:, :, :3]
             img = Image.fromarray(np_img)
 
-        img = img.convert('RGB')
+        # load_rgba keeps a 4th channel for models with an RGBA VAE. alpha_mask
+        # consumes the alpha itself, so the two are mutually exclusive.
+        if self.load_rgba and not self.use_alpha_as_mask:
+            # sources without alpha get a fully opaque one
+            img = img.convert('RGBA')
+        else:
+            img = img.convert('RGB')
         w, h = img.size
         if w > h and self.scale_to_width < self.scale_to_height:
             # throw error, they should match
@@ -1173,7 +1188,11 @@ class ControlFileItemDTOMixin:
                 img = Image.open(control_path)
                 img = exif_transpose(img)
 
-                if img.mode in ("RGBA", "LA"):
+                if self.load_rgba:
+                    # keep the alpha instead of flattening it; sources without
+                    # one get a fully opaque alpha
+                    img = img.convert("RGBA")
+                elif img.mode in ("RGBA", "LA"):
                     # Create a background with the specified transparent color
                     transparent_color = tuple(self.dataset_config.control_transparent_color)
                     background = Image.new("RGB", img.size, transparent_color)
@@ -1505,9 +1524,13 @@ class AugmentationFileItemDTOMixin:
         # save the original tensor
         self.unaugmented_tensor = transforms.ToTensor()(img) if transform is None else transform(img)
 
+        has_alpha = img.mode == 'RGBA'
         open_cv_image = np.array(img)
-        # Convert RGB to BGR
-        open_cv_image = open_cv_image[:, :, ::-1].copy()
+        # Convert RGB to BGR, leaving any alpha channel where it is
+        if has_alpha:
+            open_cv_image = open_cv_image[:, :, [2, 1, 0, 3]].copy()
+        else:
+            open_cv_image = open_cv_image[:, :, ::-1].copy()
 
         # apply augmentations
         transformed = self.aug_transform(image=open_cv_image)
@@ -1524,7 +1547,7 @@ class AugmentationFileItemDTOMixin:
             self.aug_replay_spatial_transforms = augmented_params
 
         # convert back to RGB tensor
-        augmented = cv2.cvtColor(augmented, cv2.COLOR_BGR2RGB)
+        augmented = cv2.cvtColor(augmented, cv2.COLOR_BGRA2RGBA if has_alpha else cv2.COLOR_BGR2RGB)
 
         # convert to PIL image
         augmented = Image.fromarray(augmented)
@@ -1541,20 +1564,24 @@ class AugmentationFileItemDTOMixin:
 
         # save colorspace to convert back to
         colorspace = img.mode
+        has_alpha = colorspace == 'RGBA'
 
-        # convert to rgb
-        img = img.convert('RGB')
+        # convert to rgb, keeping alpha so it rides the same spatial transform
+        img = img.convert('RGBA' if has_alpha else 'RGB')
 
         open_cv_image = np.array(img)
-        # Convert RGB to BGR
-        open_cv_image = open_cv_image[:, :, ::-1].copy()
+        # Convert RGB to BGR, leaving any alpha channel where it is
+        if has_alpha:
+            open_cv_image = open_cv_image[:, :, [2, 1, 0, 3]].copy()
+        else:
+            open_cv_image = open_cv_image[:, :, ::-1].copy()
 
         # Replay transforms
         transformed = A.ReplayCompose.replay(self.aug_replay_spatial_transforms, image=open_cv_image)
         augmented = transformed["image"]
 
         # convert back to RGB tensor
-        augmented = cv2.cvtColor(augmented, cv2.COLOR_BGR2RGB)
+        augmented = cv2.cvtColor(augmented, cv2.COLOR_BGRA2RGBA if has_alpha else cv2.COLOR_BGR2RGB)
 
         # convert to PIL image
         augmented = Image.fromarray(augmented)
@@ -1850,6 +1877,10 @@ class LatentCachingFileItemDTOMixin:
         if self.dataset_config.cache_tensors_to_disk:
             # tensor is stored in the cache file, invalidate caches made without it
             item["cache_tensors_to_disk"] = True
+        if self.load_rgba:
+            # the encoded alpha changes the latent; only added when on so caches
+            # made before this existed stay valid for models that do not use it
+            item["load_rgba"] = True
         return item
 
     def get_latent_path(self: 'FileItemDTO', recalculate=False):
@@ -1996,7 +2027,16 @@ class LatentCachingMixin:
                     if needs_encode and not did_move:
                         self.sd.set_device_state_preset('cache_latents')
                         did_move = True
-                    self._cache_one_latent(file_item, latent_path, cached_state_dict, needs_encode, to_disk, to_memory)
+                    try:
+                        self._cache_one_latent(file_item, latent_path, cached_state_dict, needs_encode, to_disk, to_memory)
+                    except UnusableFileError as e:
+                        pbar.write(f"Skipping unusable file {file_item.path}: {e}")
+                        failed_items.append(file_item)
+                        pbar.update(1)
+                        continue
+                    # models may report per-file repairs (e.g. a patched sheet); print them on their own line with the path
+                    for warning in getattr(self.sd, 'pop_encode_warnings', lambda: [])():
+                        pbar.write(f"{file_item.path}: {warning}")
                     file_item.is_latent_cached = True
                     i += 1
                     pbar.update(1)
@@ -2005,7 +2045,7 @@ class LatentCachingMixin:
                 pbar.close()
 
             if failed_items:
-                print_acc(f"Removed {len(failed_items)} files from the dataset that failed to load")
+                print_acc(f"Removed {len(failed_items)} files from the dataset that failed to load or were unusable")
                 self._remove_file_items(failed_items)
 
             # restore device state
@@ -2075,7 +2115,7 @@ class LatentCachingMixin:
             # add batch dimension
             cache_uint8 = getattr(self.sd, 'cache_latents_as_uint8', False)
             if self.dataset_config.cache_tensors_to_disk:
-                if not self.is_audio_model:
+                if not file_item.is_audio_model:
                     tensor_uint8 = _latent_to_uint8(file_item.tensor).cpu()
                     if to_disk:
                         state_dict['tensor'] = tensor_uint8
@@ -2092,7 +2132,8 @@ class LatentCachingMixin:
                         file_item._cached_waveform_int16 = waveform_int16
                         file_item._cached_waveform_sample_rate = sample_rate
             try:
-                imgs = file_item.tensor.unsqueeze(0).to(device, dtype=dtype)
+                # waveforms stay fp32 into the audio encoder (bf16 mantissa is ~48 dB of noise)
+                imgs = file_item.tensor.unsqueeze(0).to(device, dtype=torch.float32 if file_item.is_audio_model else dtype)
                 latent = self.sd.encode_images(imgs)
                 # a model can return a DTO carrying extra streams alongside the latent
                 latent = latent.map(lambda t: t.squeeze(0)) if isinstance(latent, DTO) else latent.squeeze(0)
@@ -2106,6 +2147,8 @@ class LatentCachingMixin:
                         for k, v in latent.extras.items():
                             if torch.is_tensor(v):
                                 state_dict[f'{DISK_PREFIX}{k}'] = v.clone().detach().cpu()
+            except UnusableFileError:
+                raise
             except Exception as e:
                 print_acc(f"Error processing image: {file_item.path}")
                 print_acc(f"Error: {str(e)}")
@@ -2128,7 +2171,7 @@ class LatentCachingMixin:
                         state_dict['first_frame_latent'] = first_frame_latent.clone().detach().cpu()
 
             # audio (video+audio models only — audio-only models already encoded above via encode_images)
-            if not self.is_audio_model and file_item.audio_data is not None:
+            if not file_item.is_audio_model and file_item.audio_data is not None:
                 audio_latent = self.sd.encode_audio([file_item.audio_data]).squeeze(0)
                 if to_disk:
                     state_dict['audio_latent'] = audio_latent.clone().detach().cpu()
@@ -2207,6 +2250,8 @@ class TextEmbeddingFileItemDTOMixin:
         # if we have a control image, cache the path
         if self.encode_control_in_text_embeddings and self.control_path is not None:
             item["control_path"] = self.control_path
+            if getattr(self, 'text_embedding_uses_target_size', False) and getattr(self, 'crop_width', None):
+                item["control_target_size"] = [self.crop_width, self.crop_height]
         if self.encode_control_in_text_embeddings and getattr(self, 'control_video_paths', None):
             item["control_videos"] = sorted(self.control_video_paths)
             # v2: reference-video vision blocks are no longer resampled by the
@@ -2463,6 +2508,10 @@ class TextEmbeddingCachingMixin:
                             ctrl_img = ctrl_img_list[0]
                         else:
                             ctrl_img = ctrl_img_list
+                        # the bucket the item trains at, so references can be sized against it
+                        target_size = None
+                        if getattr(file_item, 'crop_width', None) and getattr(file_item, 'crop_height', None):
+                            target_size = (file_item.crop_width, file_item.crop_height)
                         for path, caption in encode_targets:
                             if path in dropout_target_paths:
                                 # dropout embeds are plain text. Only fall back to the
@@ -2470,9 +2519,11 @@ class TextEmbeddingCachingMixin:
                                 try:
                                     prompt_embeds: PromptEmbeds = self.sd.encode_prompt(caption)
                                 except Exception:
-                                    prompt_embeds: PromptEmbeds = self.sd.encode_prompt(caption, control_images=ctrl_img)
+                                    prompt_embeds: PromptEmbeds = self.sd.encode_prompt(
+                                        caption, control_images=ctrl_img, target_size=target_size)
                             else:
-                                prompt_embeds: PromptEmbeds = self.sd.encode_prompt(caption, control_images=ctrl_img)
+                                prompt_embeds: PromptEmbeds = self.sd.encode_prompt(
+                                    caption, control_images=ctrl_img, target_size=target_size)
                             prompt_embeds.save(path)
                             del prompt_embeds
                     elif (
