@@ -9,7 +9,6 @@ AI Toolkit is an easy to use all in one training suite for diffusion models. I t
 The following models are supported for LoRA training (and in some cases full fine-tuning). Example configs are in `config/examples/`. Models without a listed HuggingFace path or example config may require manual setup or are still experimental. All models use `job: extension` with `type: "sd_trainer"` in the config. For newer models, arch flags and any version-specific notes are documented in that model's README under `extensions_built_in/diffusion_models/<model>/`.
 
 ### Image
-
 | Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
 |---|---|---|---|---|
 | FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | `is_flux: true` | `train_lora_flux_24gb.yaml` | 24GB |
@@ -26,6 +25,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Qwen-Image | `Qwen/Qwen-Image` | `arch: qwen_image` | `train_lora_qwen_image_24gb.yaml` | 24GB |
 | Qwen-Image-2512 | `Qwen/Qwen-Image-2512` | `arch: qwen_image` | — | 24GB |
 | Qwen-Image-2.1 | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` | — | 24GB |
+| Qwen-Image-2.1 Turbo | `Qwen/Qwen-Image-2.1-Turbo` | `arch: qwen_image_2` + `model_kwargs.turbo` | — | 24GB |
 | HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | `arch: hidream` | `train_lora_hidream_48.yaml` | 48GB |
 | HiDream-O1 | `HiDream-ai/HiDream-O1-Image` | `arch: hidream_o1` | — | 48GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | `arch: omnigen2` | `train_lora_omnigen2_24gb.yaml` | 24GB |
@@ -36,6 +36,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | ERNIE-Image | `baidu/ERNIE-Image` | `arch: ernie_image` | — | — |
 | Nucleus-Image | `NucleusAI/Nucleus-Image` | `arch: nucleus_image` | — | — |
 | PRXPixel | `Photoroom/prxpixel-t2i` | `arch: prx_pixel` | — | — |
+| Iris-3B | `speridlabs/iris-3b` | `arch: iris3b` | — | — |
 | CogView4 | — | `arch: cogview4` | — | — |
 | F-Lite | — | `arch: f` | — | — |
 | SDXL | `stabilityai/stable-diffusion-xl-base-1.0` | `is_xl: true` | — | 12GB |
@@ -58,6 +59,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Qwen-Image-Edit-2509 | `Qwen/Qwen-Image-Edit-2509` | `arch: qwen_image_edit_plus` | `train_lora_qwen_image_edit_2509_32gb.yaml` | 32GB |
 | Qwen-Image-Edit-2511 | `Qwen/Qwen-Image-Edit-2511` | `arch: qwen_image_edit_plus:2511` | — | 32GB |
 | Qwen-Image-2.1 (edit) | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` (edits when dataset has control images) | — | 24GB |
+| Qwen-Image-2.1 Turbo (edit) | `Qwen/Qwen-Image-2.1-Turbo` | `arch: qwen_image_2` + `model_kwargs.turbo` (edits when dataset has control images) | — | 24GB |
 | HiDream-E1-1 | `HiDream-ai/HiDream-E1-1` | `arch: hidream_e1` | — | 48GB |
 | Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | 24GB |
 | Boogu Image Edit | `Boogu/Boogu-Image-0.1-Edit` | `arch: boogu_image_edit` | — | 24GB |
