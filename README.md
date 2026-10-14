@@ -10,6 +10,7 @@ The following models are supported for LoRA training (and in some cases full fin
 
 ### Image
 
+
 | Model | HuggingFace Path | Config `arch` / flags | Example Config | Min VRAM |
 |---|---|---|---|---|
 | FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | `is_flux: true` | `train_lora_flux_24gb.yaml` | 24GB |
@@ -26,6 +27,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Qwen-Image | `Qwen/Qwen-Image` | `arch: qwen_image` | `train_lora_qwen_image_24gb.yaml` | 24GB |
 | Qwen-Image-2512 | `Qwen/Qwen-Image-2512` | `arch: qwen_image` | — | 24GB |
 | Qwen-Image-2.1 | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` | — | 24GB |
+| Qwen-Image-2.1 Turbo | `Qwen/Qwen-Image-2.1-Turbo` | `arch: qwen_image_2` + turbo weights | — | 24GB |
 | HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | `arch: hidream` | `train_lora_hidream_48.yaml` | 48GB |
 | HiDream-O1 | `HiDream-ai/HiDream-O1-Image` | `arch: hidream_o1` | — | 48GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | `arch: omnigen2` | `train_lora_omnigen2_24gb.yaml` | 24GB |
@@ -36,6 +38,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | ERNIE-Image | `baidu/ERNIE-Image` | `arch: ernie_image` | — | — |
 | Nucleus-Image | `NucleusAI/Nucleus-Image` | `arch: nucleus_image` | — | — |
 | PRXPixel | `Photoroom/prxpixel-t2i` | `arch: prx_pixel` | — | — |
+| Iris-3B | `speridlabs/iris-3b` | `arch: iris3b` | — | — |
 | CogView4 | — | `arch: cogview4` | — | — |
 | F-Lite | — | `arch: f` | — | — |
 | SDXL | `stabilityai/stable-diffusion-xl-base-1.0` | `is_xl: true` | — | 12GB |
@@ -58,12 +61,14 @@ The following models are supported for LoRA training (and in some cases full fin
 | Qwen-Image-Edit-2509 | `Qwen/Qwen-Image-Edit-2509` | `arch: qwen_image_edit_plus` | `train_lora_qwen_image_edit_2509_32gb.yaml` | 32GB |
 | Qwen-Image-Edit-2511 | `Qwen/Qwen-Image-Edit-2511` | `arch: qwen_image_edit_plus:2511` | — | 32GB |
 | Qwen-Image-2.1 (edit) | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` (edits when dataset has control images) | — | 24GB |
+| Qwen-Image-2.1 Turbo (edit) | `Qwen/Qwen-Image-2.1-Turbo` | `arch: qwen_image_2` + turbo weights (edits when dataset has control images) | — | 24GB |
 | HiDream-E1-1 | `HiDream-ai/HiDream-E1-1` | `arch: hidream_e1` | — | 48GB |
 | Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | 24GB |
 | Boogu Image Edit | `Boogu/Boogu-Image-0.1-Edit` | `arch: boogu_image_edit` | — | 24GB |
 | Krea 2 (edit training) | `krea/Krea-2-Raw` | `arch: krea2` | — | 24GB |
 | Krea 2 Turbo (edit training) | `krea/Krea-2-Turbo` | `arch: krea2` | — | 24GB |
 | Mage-Flow Edit | `microsoft/Mage-Flow-Edit-Base` | `arch: mageflow_edit` | — | — |
+
 
 ### Video
 
