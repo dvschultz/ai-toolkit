@@ -17,6 +17,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | FLUX.2-dev | `black-forest-labs/FLUX.2-dev` | `arch: flux2` | — | 24GB |
 | FLUX.2-Klein-4B | `black-forest-labs/FLUX.2-klein-base-4B` | `arch: flux2_klein_4b` | — | 24GB |
 | FLUX.2-Klein-9B | `black-forest-labs/FLUX.2-klein-base-9B` | `arch: flux2_klein_9b` | — | 24GB |
+| FLUX.3 Image Klein | `black-forest-labs/flux-3-image-klein-base` | `arch: flux3` | — | — |
 | Flex.1-alpha | `ostris/Flex.1-alpha` | `is_flux: true` | `train_lora_flex_24gb.yaml` | 24GB |
 | Flex.2-preview | `ostris/Flex.2-preview` | `arch: flex2` | `train_lora_flex2_24gb.yaml` | 24GB |
 | Stable Diffusion 3.5 Large | `stabilityai/stable-diffusion-3.5-large` | `is_v3: true` | `train_lora_sd35_large_24gb.yaml` | 24GB |
@@ -26,6 +27,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Qwen-Image | `Qwen/Qwen-Image` | `arch: qwen_image` | `train_lora_qwen_image_24gb.yaml` | 24GB |
 | Qwen-Image-2512 | `Qwen/Qwen-Image-2512` | `arch: qwen_image` | — | 24GB |
 | Qwen-Image-2.1 | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` | — | 24GB |
+| Qwen-Image-2.1 Turbo | `Qwen/Qwen-Image-2.1-Turbo` | `arch: qwen_image_2` | — | 24GB |
 | HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | `arch: hidream` | `train_lora_hidream_48.yaml` | 48GB |
 | HiDream-O1 | `HiDream-ai/HiDream-O1-Image` | `arch: hidream_o1` | — | 48GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | `arch: omnigen2` | `train_lora_omnigen2_24gb.yaml` | 24GB |
@@ -47,6 +49,10 @@ The following models are supported for LoRA training (and in some cases full fin
 | Krea 2 Turbo | `krea/Krea-2-Turbo` | `arch: krea2` | — | 24GB |
 | Ideogram 4 FP8 | `ideogram-ai/ideogram-4-fp8` | `arch: ideogram4` | — | — |
 | Mage-Flow | `microsoft/Mage-Flow-Base` | `arch: mageflow` | — | — |
+| Iris-3B | `speridlabs/iris-3b` | `arch: iris3b` | — | — |
+| MOSS-Image SFT | `OpenMOSS-Team/MOSS-Image-SFT` | `arch: moss_image` | — | — |
+| MOSS-Image Base | `OpenMOSS-Team/MOSS-Image-Base` | `arch: moss_image` | — | — |
+| Fibo 2.0 Dev | `briaai/Fibo-2.0-dev` | `arch: fibo2` | — | — |
 | Ming-Image 0.1 Design | `inclusionAI/Ming-Image-0.1-Design` | `arch: ming_image` | — | — |
 
 ### Instruction / Edit
@@ -58,6 +64,7 @@ The following models are supported for LoRA training (and in some cases full fin
 | Qwen-Image-Edit-2509 | `Qwen/Qwen-Image-Edit-2509` | `arch: qwen_image_edit_plus` | `train_lora_qwen_image_edit_2509_32gb.yaml` | 32GB |
 | Qwen-Image-Edit-2511 | `Qwen/Qwen-Image-Edit-2511` | `arch: qwen_image_edit_plus:2511` | — | 32GB |
 | Qwen-Image-2.1 (edit) | `Qwen/Qwen-Image-2.1` | `arch: qwen_image_2` (edits when dataset has control images) | — | 24GB |
+| Qwen-Image-2.1 Turbo (edit) | `Qwen/Qwen-Image-2.1-Turbo` | `arch: qwen_image_2` (8-step turbo; edits with control images) | — | 24GB |
 | HiDream-E1-1 | `HiDream-ai/HiDream-E1-1` | `arch: hidream_e1` | — | 48GB |
 | Boogu Image 0.1 | `Boogu/Boogu-Image-0.1-Base` | `arch: boogu_image` | — | 24GB |
 | Boogu Image Edit | `Boogu/Boogu-Image-0.1-Edit` | `arch: boogu_image_edit` | — | 24GB |

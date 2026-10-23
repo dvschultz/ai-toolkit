@@ -36,7 +36,7 @@ from diffusers import EMAModel
 import math
 from toolkit.train_tools import precondition_model_outputs_flow_match
 from toolkit.models.diffusion_feature_extraction import DiffusionFeatureExtractor, load_dfe
-from toolkit.util.losses import wavelet_loss, stepped_loss
+from toolkit.util.losses import wavelet_loss, stepped_loss, band_loss
 import torch.nn.functional as F
 from toolkit.unloader import unload_text_encoder
 from PIL import Image
@@ -919,10 +919,7 @@ class SDTrainer(BaseSDTrainProcess):
                         tv = torch.clamp(tv, min=0.001)
                 
                 # step latent, use here or with do_fft_loss
-                if self.sd.x0_pred:
-                    t0 = noise_pred
-                else:
-                    t0 = noisy_latents - tv * noise_pred
+                t0 = self.sd.get_x0_prediction(noise_pred, noisy_latents, tv)
                 
                 if self.train_config.t0_loss_target:
                     # replace the loss targets and pred
@@ -930,7 +927,7 @@ class SDTrainer(BaseSDTrainProcess):
                     pred = t0
                     # handle velocity equiv loss if set. This scales t0 loss to match velocity of flowmatchhing loss
                     if self.train_config.t0_velocity_equiv_weight:
-                        velocity_equiv_weight = (1.0 / torch.clamp(tv, min=0.1) ** 2)
+                        velocity_equiv_weight = (1.0 / torch.clamp(tv, min=0.01) ** 2)
                         local_loss_scale = velocity_equiv_weight
                         
                 if self.train_config.do_fft_loss:
@@ -939,7 +936,7 @@ class SDTrainer(BaseSDTrainProcess):
                     pred_mag = torch.fft.rfft2(t0.float(), norm="ortho").abs()
                     fft_loss = F.mse_loss(pred_mag, target_mag, reduction="none")
                     if self.train_config.do_fft_velocity_equiv_weight:
-                        velocity_equiv_weight = (1.0 / torch.clamp(tv, min=0.1) ** 2)
+                        velocity_equiv_weight = (1.0 / torch.clamp(tv, min=0.01) ** 2)
                         fft_loss = fft_loss * velocity_equiv_weight
                     fft_loss = fft_loss.mean()
                     self.additional_logs['loss/fft'] = fft_loss.item()
@@ -952,6 +949,9 @@ class SDTrainer(BaseSDTrainProcess):
                 loss = torch.nn.functional.l1_loss(pred.float(), target.float(), reduction="none")
             elif self.train_config.loss_type == "wavelet":
                 loss = wavelet_loss(pred, batch.latents, noise)
+            elif self.train_config.loss_type == "band":
+                # per-sample frequency-weighted MSE: bands the noise has buried at this t drop out
+                loss = band_loss(pred, target, batch.latents, noise, timesteps, self.sd.is_flow_matching, self.sd.noise_scheduler)
             elif self.train_config.loss_type == "stepped":
                 loss = stepped_loss(pred, batch.latents, noise, noisy_latents, timesteps, self.sd.noise_scheduler)
                 # the way this loss works, it is low, increase it to match predictable LR effects
