@@ -48,6 +48,12 @@ The following models are supported for LoRA training (and in some cases full fin
 | Ideogram 4 FP8 | `ideogram-ai/ideogram-4-fp8` | `arch: ideogram4` | — | — |
 | Mage-Flow | `microsoft/Mage-Flow-Base` | `arch: mageflow` | — | — |
 | Ming-Image 0.1 Design | `inclusionAI/Ming-Image-0.1-Design` | `arch: ming_image` | — | — |
+| FLUX.3 Image Klein | `black-forest-labs/flux-3-image-klein-base` | see model README | — | — |
+| Qwen-Image-2.1 Turbo | `Qwen/Qwen-Image-2.1-Turbo` | see model README | — | — |
+| Iris 3B | `speridlabs/iris-3b` | see model README | — | — |
+| MOSS-Image-SFT | `OpenMOSS-Team/MOSS-Image-SFT` | see model README | — | — |
+| MOSS-Image-Base | `OpenMOSS-Team/MOSS-Image-Base` | see model README | — | — |
+| Fibo 2.0 dev | `briaai/Fibo-2.0-dev` | see model README | — | — |
 
 ### Instruction / Edit
 
