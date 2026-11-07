@@ -40,7 +40,7 @@ python scripts/remote/cli.py <subcommand>     # or: python -m scripts.remote.cli
 | `--output-base DIR` | Write pulled artifacts (checkpoints + samples) to `<DIR>/<run>/` instead of the repo's `./output/<run>/`. Also settable via `$AITK_OUTPUT_BASE`. `runs/<run>/` (manifest + mirrors) always stays under the repo so `attach`/re-entry work. Goes **before** the subcommand, and must be passed on **every** command for a run (it is not persisted in the manifest). Point it at an external drive so large (Flux.2, ~11GB) pulls can't fill the local disk — a full disk makes `down`'s final pull fail and leaves the pod STOPPED until you free space. |
 
 ```bash
-python scripts/remote/cli.py --output-base "/Volumes/Lexar/aitk-output" \
+python scripts/remote/cli.py --output-base "/Volumes/EXT/aitk-output" \
     up config/examples/<config>.yaml --gpu H200 --gpu-fallback "H100 NVL"
 ```
 
@@ -143,16 +143,16 @@ so openrsync works, but `brew install rsync` is recommended.
 
 ```bash
 # 1. Validate config + dataset locally (free, no network)
-python scripts/remote/cli.py preflight config/examples/train_lora_flux2_klein_9b_balfua_style_v3.yaml
+python scripts/remote/cli.py preflight config/examples/train_lora_flux2_klein_9b_example_style_v3.yaml
 
 # 2. Provision + sync + launch in one shot
-python scripts/remote/cli.py up config/examples/train_lora_flux2_klein_9b_balfua_style_v3.yaml
+python scripts/remote/cli.py up config/examples/train_lora_flux2_klein_9b_example_style_v3.yaml
 
 # 3. Follow the run (blocks; exits with a distinct code on terminal states)
-python scripts/remote/cli.py watch balfua_v3
+python scripts/remote/cli.py watch example_v3
 
 # 4. Final pull, verify, terminate, cost report
-python scripts/remote/cli.py down balfua_v3
+python scripts/remote/cli.py down example_v3
 ```
 
 Artifacts land in `output/<run>/` mirroring the trainer's own layout, so all

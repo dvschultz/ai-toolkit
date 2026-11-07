@@ -52,8 +52,8 @@ class DispatchRunner:
 EP = Endpoint(host="1.2.3.4", port=10022)
 
 NOW = 1768500000.0
-RUN = "balfua_v3"
-JOB_DIR = contract.remote_job_dir(RUN)  # /workspace/runs/balfua_v3/output/balfua_v3
+RUN = "example_v3"
+JOB_DIR = contract.remote_job_dir(RUN)  # /workspace/runs/example_v3/output/example_v3
 
 
 def sample_line(step, idx, mtime, size=123456):
@@ -545,8 +545,8 @@ class TestSentinelMirror(unittest.TestCase):
 
     def test_exit_code_mirrored_and_recorded(self):
         runner = DispatchRunner([
-            ("cat '/workspace/runs/balfua_v3/exit_code'", proc("0\n")),
-            ("cat '/workspace/runs/balfua_v3/timed_out'", proc("", returncode=1)),
+            ("cat '/workspace/runs/example_v3/exit_code'", proc("0\n")),
+            ("cat '/workspace/runs/example_v3/timed_out'", proc("", returncode=1)),
             ("tail -c", proc("step 1000 loss 0.12\n")),
             ("rsync", proc("")),  # loss_log.db mirror (terminal because sentinel found)
         ])
@@ -600,7 +600,7 @@ class TestConfigDrift(unittest.TestCase):
         os.makedirs(self.run_dir)
         self.config_path = os.path.join(self.run_dir, transport.DERIVED_CONFIG_FILE)
         with open(self.config_path, "w") as f:
-            f.write("job: extension\nconfig:\n  name: balfua_v3\n")
+            f.write("job: extension\nconfig:\n  name: example_v3\n")
         with open(self.config_path, "rb") as f:
             self.good_hash = hashlib.sha256(f.read()).hexdigest()
 

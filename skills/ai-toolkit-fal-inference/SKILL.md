@@ -63,7 +63,7 @@ each with a unique fresh seed.
 ### Prompts for capability sampling: cover a range of complexities
 
 Don't just use 2 prompts of similar shape. Mix:
-- **Training-format match**: shortest noun-glyph e.g. `"a dolphin glyph, silex relief, 4m0nsx"`
+- **Training-format match**: shortest noun-glyph e.g. `"a dolphin glyph, linocut relief, myst1le"`
 - **Novel single subject**: noun the dataset never had e.g. `"a key glyph, ..."`
 - **Multi-subject group**: e.g. `"a horse herd glyph, ..."`
 - **Architectural / complex scene**: e.g. `"an industrial landscape glyph, ..."`
@@ -85,7 +85,7 @@ Before invoking, confirm:
    they want to compare. Each gets a short label (defaults to filename stem
    if not provided).
 2. **Prompts** — exact text the user wants to test. Include the trigger phrase
-   (e.g. `silex relief, 4m0nsx`) if applicable — the script does not add it.
+   (e.g. `linocut relief, myst1le`) if applicable — the script does not add it.
 3. **Seeds** — explicit list (for reproducible A/B) or `--num-seeds N` for N
    random. **For A/B comparisons, ALWAYS use explicit seeds** so the same
    seed produces directly comparable images across LoRAs.
@@ -206,11 +206,11 @@ across LoRAs — that's the point.
     --lora v4_2000:output/run/run_000002000.safetensors \
     --lora v4_2500:output/run/run_000002500.safetensors \
     --lora v4_3000:output/run/run_000003000.safetensors \
-    --prompt "a dolphin glyph, silex relief, 4m0nsx" \
-    --prompt "a key glyph, silex relief, 4m0nsx" \
-    --prompt "a horse herd glyph, silex relief, 4m0nsx" \
-    --prompt "an industrial landscape glyph, silex relief, 4m0nsx" \
-    --prompt "a butterfly glyph, silex relief, 4m0nsx" \
+    --prompt "a dolphin glyph, linocut relief, myst1le" \
+    --prompt "a key glyph, linocut relief, myst1le" \
+    --prompt "a horse herd glyph, linocut relief, myst1le" \
+    --prompt "an industrial landscape glyph, linocut relief, myst1le" \
+    --prompt "a butterfly glyph, linocut relief, myst1le" \
     --per-lora-num-seeds 2
 ```
 
@@ -257,9 +257,9 @@ noise at each scale so the only variable is strength:
     --run scale_sweep \
     --lora my_lora:path/to.safetensors \
     --scale-sweep 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 \
-    --prompt "a dolphin glyph, silex relief, 4m0nsx" \
-    --prompt "a key glyph, silex relief, 4m0nsx" \
-    --prompt "an industrial landscape glyph, silex relief, 4m0nsx" \
+    --prompt "a dolphin glyph, linocut relief, myst1le" \
+    --prompt "a key glyph, linocut relief, myst1le" \
+    --prompt "an industrial landscape glyph, linocut relief, myst1le" \
     --seed 42 --seed 123
 ```
 
@@ -271,7 +271,7 @@ Klein-9B calibration (default scale 1.4).
 
 - **Sweep strength BEFORE comparing checkpoints — always, on every base.**
   Checkpoint ranking at an uncalibrated scale measures the scale, not the
-  checkpoint. On pawlowski-kineform three fal batches and ~$7 went into ranking
+  checkpoint. On one morph-video project three fal batches and ~$7 went into ranking
   checkpoints at scale 1.0; step 1250 "clearly beat" 1750 there, and the two
   came out roughly equal once scale (2.75) and prompt dialect were corrected.
   The order is: **(1) pick one mid-run checkpoint, (2) scale-sweep it with
@@ -282,7 +282,7 @@ Klein-9B calibration (default scale 1.4).
 
 - **A distilled endpoint can strip a fine register at scale 1.0 — sweep
   before concluding it wasn't trained.** Krea-2-Turbo is the standing case:
-  a decker-protocolized checkpoint that scored 2/3 on its artifact texture
+  a checkpoint from a glitch-texture style project that scored 2/3 on its artifact texture
   in training samples scored 0-1 on Turbo at 1.0, then came back at 1.6
   (smear on 5 of 6 prompts). Distillation regularizes away high-frequency
   processing texture first; palette and light survive it. So for any LoRA
@@ -293,7 +293,7 @@ Klein-9B calibration (default scale 1.4).
   carries weakly, and stacks with scale.
 - **Trigger phrase IS required in the prompt**, just like in training. The
   script doesn't auto-append. If the user's prompt looks suspiciously vanilla
-  (no `silex relief, 4m0nsx`-style suffix), ask whether they meant to include
+  (no `linocut relief, myst1le`-style suffix), ask whether they meant to include
   it.
 - **Pick the right seed mode for the question.** Pinned-seed A/B (`--seed`) is
   for "did this change behavior X" diagnostic comparisons. Capability sampling
@@ -312,7 +312,7 @@ Klein-9B calibration (default scale 1.4).
   | `--base` | endpoint | default scale | notes |
   |---|---|---|---|
   | `klein-9b` | `fal-ai/flux-2/klein/9b/base/lora` | 1.4 | t2i for `FLUX.2-klein-base-9B` LoRAs. guidance 5.0, negatives supported. |
-  | `klein-9b-base-edit` | `fal-ai/flux-2/klein/9b/base/edit/lora` | 1.4 | **image-to-image**; the deploy path for `ctrl_img` restyle LoRAs. Requires `--image`. A t2i endpoint cannot restyle — sa-mayer shipped here. |
+  | `klein-9b-base-edit` | `fal-ai/flux-2/klein/9b/base/edit/lora` | 1.4 | **image-to-image**; the deploy path for `ctrl_img` restyle LoRAs. Requires `--image`. A t2i endpoint cannot restyle — one restyle project shipped here. |
   | `krea2-turbo` | `fal-ai/krea-2/turbo/lora` | 1.25 | Krea2 LoRAs **train on Raw, deploy on Turbo**. No guidance/steps/negative in the schema. Always Turbo-test before shipping. |
   | `flux2-dev` | `fal-ai/flux-2/lora` | 1.0 | `arch: flux2`. guidance 2.5, **no negative_prompt field** (fal drops it silently) — text-leak control is scale ≤1.0 only. TITLES holds a commercial license. |
   | `ideogram-v4` | `ideogram/v4/lora` | 1.0 | `arch: ideogram4`. No guidance/steps; `expansion_model` `"None"` tests raw LoRA behavior, `"Medium"`/`"Large"` runs Magic Prompt (the real deploy path). |
@@ -374,7 +374,7 @@ Settings that are not optional (each one cost a batch to learn):
 | `--safety-checker` | leave OFF | Defaults true on the endpoint and returns a **black video** on a false positive. |
 | `--resolution` | `768P` | Only 480P and 768P are native; 2K/4K just upscale a 768P base. |
 | `--aspect-ratio` | match the training canvas | `4:3` for a 1024×768 LoRA — also H3's own native canvas. |
-| `--duration` | 5 | Endpoint minimum; training clips are usually shorter (4.46s on pawlowski) and cannot be matched exactly. |
+| `--duration` | 5 | Endpoint minimum; training clips are usually shorter (4.46s on one morph-video project) and cannot be matched exactly. |
 | `--scale` | **sweep it, expect a high number** | H3 sits far above the image bases: 1.0 reads as generic dark-and-glowy, the style arrives ~2.4–2.5, and 2.75 was the reliable choice across seeds. Range is 0–4. |
 
 Cost is per second of output: 480P $0.0625 · 768P $0.075 · 2K $0.1625 ·
@@ -383,7 +383,7 @@ them" reflex from the image path is a $4 decision here. The script prints an
 estimate and asks for confirmation unless `--yes` is passed.
 
 **Trigger-is-not-a-switch check.** Before writing deploy notes for a video LoRA,
-run the trigger alone and a no-trigger control. On pawlowski the trigger alone
+run the trigger alone and a no-trigger control. On one morph-video project the trigger alone
 produced nothing and the no-trigger control still carried the full style — the
 style was bound to the model, not the token. That is harmless for "load the LoRA
 when you want the look" (and it makes the model immune to fal's prompt

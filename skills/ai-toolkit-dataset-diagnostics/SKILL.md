@@ -463,7 +463,7 @@ trained correctly but the trigger has no unique role.
 **Diagnose:**
 ```bash
 # For style LoRAs — grep for the style traits
-grep -iE 'sepia|iridescent|chemigram|<your-style-words>' \
+grep -iE 'sepia|iridescent|photogram|<your-style-words>' \
   /your/dataset/path/*.txt | wc -l
 
 # For character LoRAs — grep for identity descriptors

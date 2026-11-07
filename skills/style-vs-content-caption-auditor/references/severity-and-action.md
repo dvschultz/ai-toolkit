@@ -71,7 +71,7 @@ words highlighted. To spot-fix:
 ```bash
 # Audit
 python scripts/audit_captions.py --dataset /path --mode style \
-    --trigger 1ll6m3ns --top 20
+    --trigger ph0tgrm --top 20
 
 # Edit the flagged files manually — open each in your editor,
 # remove the leaked words, save
@@ -81,7 +81,7 @@ $EDITOR /path/to/dataset/<flagged_file_2>.txt
 
 # Re-audit to confirm leak rate dropped
 python scripts/audit_captions.py --dataset /path --mode style \
-    --trigger 1ll6m3ns
+    --trigger ph0tgrm
 ```
 
 If you're editing more than ~5 files, recaption is probably faster.
@@ -158,7 +158,7 @@ python scripts/audit_captions.py \
 Then before every `python run.py config/...`:
 
 ```bash
-bash ~/preflight_captions.sh /path/to/dataset style 1ll6m3ns
+bash ~/preflight_captions.sh /path/to/dataset style ph0tgrm
 ```
 
 5 minutes of audit prevents 4 hours of failed training.

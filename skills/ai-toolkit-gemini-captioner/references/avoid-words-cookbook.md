@@ -18,7 +18,7 @@ weakens proportionally.
 
 ### Pass 1 — name the style in 6–10 words
 
-Force the user to articulate it. "Chemigram darkroom prints with iridescent
+Force the user to articulate it. "Photogram darkroom prints with iridescent
 chemistry, leaf photograms on dark paper" → that one sentence already names
 six avoid-list categories: medium, palette, technique, surface, substrate,
 subject-as-style.
@@ -68,7 +68,7 @@ artwork, art piece, sculpture
 ```
 
 (Include only the ones you don't want — if the dataset IS photographs,
-keep `photograph` describable as content; if it's chemigrams that look
+keep `photograph` describable as content; if it's photograms that look
 photographic, exclude `photograph` to keep "photographic" out of captions.)
 
 ### Pass 5 — include hedging and quality words
@@ -82,12 +82,12 @@ These don't hurt the LoRA directly but they pollute caption signal.
 
 ## Special cases
 
-### Style-as-subject overlap (chemigram trap)
+### Style-as-subject overlap (photogram trap)
 
 If the SUBJECT and the STYLE share visible features, you have to be
-surgical. Chemigram example: leaves are the subject (variable), but
+surgical. Photogram example: leaves are the subject (variable), but
 **leaf veins** are the style (binds to trigger — the user wants vein-
-patterning to fire automatically on a "dog, 1ll6m3ns" prompt). The
+patterning to fire automatically on a "dog, ph0tgrm" prompt). The
 captioner must describe leaves and never describe veins.
 
 Add the shared-feature words to the avoid list explicitly:

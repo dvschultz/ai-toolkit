@@ -147,7 +147,7 @@ Adapt the style-LoRA system prompt in
 `.claude/skills/ai-toolkit-lora-config/references/captioning.md` with the
 inverted classification. Two examples in the wild that demonstrate this:
 
-- `extensions_built_in/sd_trainer/...` chemigram config: vein patterning is
+- `extensions_built_in/sd_trainer/...` photogram config: vein patterning is
   classified as STYLE (omitted) so it appears on non-leaf subjects at inference.
 - This skill's parent task: heart-shape is classified as CONTENT (described) so
   it becomes a controllable variable.

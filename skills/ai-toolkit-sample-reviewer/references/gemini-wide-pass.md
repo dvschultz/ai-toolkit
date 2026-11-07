@@ -90,7 +90,7 @@ Useful flags:
     "run_folder": "output/my_run",
     "model": "gemini-3.1-pro-preview",
     "goal": "style",
-    "trigger_word": "1ll6m3ns",
+    "trigger_word": "ph0tgrm",
     "control_prompt_indices": [3, 7],          // prompts with no trigger
     "prompts": { "0": "<rendered prompt 0>", "1": "..." }
   },

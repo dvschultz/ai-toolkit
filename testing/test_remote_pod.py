@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.remote import contract, pod
 
 
-FAKE_PUBKEY = "ssh-ed25519 AAAATESTKEY derrick@mac"
+FAKE_PUBKEY = "ssh-ed25519 AAAATESTKEY user@host"
 
 # A ready pod the way runpod's get_pod returns it: desiredStatus RUNNING +
 # runtime.ports with the public-IP 22/tcp mapping.
@@ -69,7 +69,7 @@ class TestCreatePod(PodTestBase):
         sdk.create_pod.return_value = {"id": "pod123", "desiredStatus": "CREATED"}
         sdk.get_pod.return_value = RAW_READY_POD
 
-        info = pod.create_pod("balfua_v3", disk_gb=88, sdk=sdk)
+        info = pod.create_pod("example_v3", disk_gb=88, sdk=sdk)
 
         self.assertEqual(info.pod_id, "pod123")
         self.assertEqual(info.status, "RUNNING")
@@ -79,7 +79,7 @@ class TestCreatePod(PodTestBase):
         self.assertAlmostEqual(info.hourly_rate, 1.89)
 
         kwargs = sdk.create_pod.call_args.kwargs
-        self.assertEqual(kwargs["name"], "aitk-balfua_v3")
+        self.assertEqual(kwargs["name"], "aitk-example_v3")
         self.assertEqual(kwargs["gpu_type_id"], pod.DEFAULT_GPU)
         self.assertEqual(kwargs["cloud_type"], "SECURE")
         self.assertEqual(kwargs["ports"], "22/tcp")

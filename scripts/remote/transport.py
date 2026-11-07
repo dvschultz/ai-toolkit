@@ -90,7 +90,7 @@ def _ssh_transport_arg(ep: Endpoint) -> str:
 def _remote_spec(ep: Endpoint, remote_path: str) -> str:
     # rsync applies one round of remote-shell word-splitting to the path after
     # the colon, so an unquoted "core gestures" lands as two args and the data
-    # ends up in a truncated "core" dir (observed: dawnjin v5 dataset, 2026-06).
+    # ends up in a truncated "core" dir (observed on a dataset folder with a space in its name, 2026-06).
     # shlex.quote wraps only when needed and is portable (the REMOTE sh strips
     # the quotes); a no-op for space-free paths like the checkpoint job dirs.
     return f"{ep.user}@{ep.host}:{shlex.quote(remote_path)}"

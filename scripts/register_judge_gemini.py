@@ -6,7 +6,7 @@ Claude's image-reading path summarizes composition, palette and subject, and
 flattens *processing texture* into words like "photorealistic" or "sharp". A
 style whose signature IS the processing (lo-fi GAN smear, datamosh, halftone
 density, grain structure, print artifacts) is therefore invisible to it — the
-decker-protocolized run shipped two complete trainings (~$17) against a ground
+glitch-texture style run on one project shipped two complete trainings (~$17) against a ground
 truth that had the palette right and the texture missing entirely.
 
 This script takes that judgment out of the proxy's hands: the artist's own

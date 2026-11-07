@@ -43,7 +43,7 @@ along with the edit — the classic edit-LoRA failure mode.
 entirely (measured: border-ring MAE 56 vs 43). Verify with a 1-image A/B
 using region pixel stats before batching, but expect nano-banana to win.
 
-**Batch pattern** (see `scripts/sununguro_make_controls.py`):
+**Batch pattern** for a control-generation script:
 resumable, per-stem `EXTRA` instruction dict for targeted regen, cover-crop
 output to exact target dims, side-by-side QA pair per image.
 
@@ -111,4 +111,3 @@ directions (rejected a QA-passed control; accepted a QA-rejected one).
 - Gemini 2.5-flash segmentation on 1024px images can 504 at 120s timeout —
   use 768px input, 240s timeout, retry, fall back to 2.5-pro.
 - ~$0.13/render at 2K; a 10-image set with the full ladder cost ~25 renders.
-- Reference implementation: `scripts/sununguro_make_controls.py` (this repo).

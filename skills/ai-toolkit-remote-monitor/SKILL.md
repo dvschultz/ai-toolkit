@@ -4,7 +4,7 @@ description: >
   Follow a running AI Toolkit training run on a RunPod GPU and drive the
   mid-run checkpoint-review loop from the Mac CLI. Use when: (1) a remote run
   is already launched and the user says "check on my run", "how's training
-  going", "watch the balfua run", "any new samples", "is it done yet",
+  going", "watch the example run", "any new samples", "is it done yet",
   (2) a fresh Claude session needs to re-attach to a run started earlier
   ("attach to <run>"), (3) samples have come back and it's time to pick a
   checkpoint mid-run. Drives scripts/remote/cli.py watch/status/pull/attach/

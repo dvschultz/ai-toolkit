@@ -96,13 +96,13 @@ Common flags:
 | Flag | Use |
 |------|-----|
 | `--length 5` | 5-second chunks (default) — typical Wan22 5s training window |
-| `--length 10` | 10-second chunks — when you want the LoRA to learn a slower temporal compression (e.g., yvonne morph dataset uses 10s chunks @ num_frames=81) |
+| `--length 10` | 10-second chunks — when you want the LoRA to learn a slower temporal compression (e.g., a morph dataset that uses 10s chunks @ num_frames=81) |
 | `--drop-partial` | Drop the final chunk if it's <length seconds. Use this — partial chunks corrupt training |
 | `--overwrite` | Re-chunk after changing strategy. Without this, existing chunks are skipped |
 | `--crf 18` | Quality (default 18, lower=better/larger). Don't go above 22 for training data |
 
 The naming convention `<basename>_chunk_NNN.mp4` is **load-bearing**: it
-enables `caption_yvonne_videos_from_filename.py`-style deterministic captioning
+enables `caption_<name>_videos_from_filename.py`-style deterministic captioning
 downstream. If you rename chunks, filename-template captioning breaks.
 
 ## Step 4 — Verify chunks

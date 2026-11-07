@@ -8,16 +8,16 @@ Sample prompts during training are the only signal for whether the LoRA is actua
 
 Why: if the base model can render the thing from the prompt alone (e.g., you asked for "oil pastel illustration" so the base model gives you one), you can't tell if the LoRA learned anything. The LoRA must be forced to do the work.
 
-### Wrong (for a Sharon Zheng style LoRA):
+### Wrong (for an illustrator's oil-pastel style LoRA):
 ```
-shnzng a red bicycle rendered as an oil pastel crayon illustration on white paper with heavy waxy pigment buildup and visible directional hatching strokes...
+p4st3l a red bicycle rendered as an oil pastel crayon illustration on white paper with heavy waxy pigment buildup and visible directional hatching strokes...
 ```
 
 The base model renders that from the prompt. Training results are indistinguishable from baseline.
 
 ### Right:
 ```
-shnzng a red bicycle
+p4st3l a red bicycle
 ```
 
 If the style LoRA is working, this produces the target style. If not, it produces whatever the base model defaults to (probably a photo).
@@ -38,22 +38,22 @@ checkpoint, a bad scale, or a failed run.
 Concretely, if captions are shaped:
 
 ```
-[composition clause], [count] [1-2 colours] form(s) [mode], k1n3f0rm
+[composition clause], [count] [1-2 colours] form(s) [mode], m0rphf0rm
 ```
 
-then a sample prompt must put `k1n3f0rm` **last** after a comma, carry a
+then a sample prompt must put `m0rphf0rm` **last** after a comma, carry a
 composition clause, use one motion word from the closed set the captions use,
 and run about as long as a caption:
 
 ```yaml
 # Right — minimal content, caption grammar
-- "off-centre in the upper frame, a cluster of teal and amber forms roiling, k1n3f0rm"
+- "off-centre in the upper frame, a cluster of teal and amber forms roiling, m0rphf0rm"
 
 # Wrong — trigger fronted, no composition clause; under-fires the LoRA
-- "k1n3f0rm a cluster of teal and amber forms"
+- "m0rphf0rm a cluster of teal and amber forms"
 ```
 
-On pawlowski-kineform the sample prompts were written trigger-first while every
+On one morph-video project the sample prompts were written trigger-first while every
 caption put the trigger last. The training samples were a weak signal for the
 whole run, and the error carried into the first fal batches — three batches and
 ~$7 spent ranking checkpoints on prompts the model had never been addressed in.

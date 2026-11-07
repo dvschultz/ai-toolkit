@@ -35,8 +35,8 @@ Ask the user (or infer from context):
 |-------|-------|
 | **Mode** | style / character / motion-first-frame / filename-template |
 | **Dataset path** | Absolute path. Often `/Volumes/...` external drive |
-| **Trigger word** | Leetspeak token, e.g. `1ll6m3ns`, `vcr1bb`, `p3r5on`, `gr4r0cks`. Must match `trigger_word` in the YAML config |
-| **Anchored suffix** (style only) | Optional real-word + trigger pair, e.g. `chemigram print, 1ll6m3ns`. Real word gives semantic prior; leetspeak is the lock-in |
+| **Trigger word** | Leetspeak token, e.g. `ph0tgrm`, `k1tsch`, `p3r5on`, `r0ckf0rm`. Must match `trigger_word` in the YAML config |
+| **Anchored suffix** (style only) | Optional real-word + trigger pair, e.g. `photogram print, ph0tgrm`. Real word gives semantic prior; leetspeak is the lock-in |
 | **Style/character/motion description** | What the dataset shows. Used to derive the avoid list |
 | **Known leakage words** | Optional. Words from prior runs that leaked into Gemini output and hurt the LoRA |
 
@@ -48,7 +48,7 @@ knowing what the LoRA is trying to learn.
 
 | Mode | Use when | Reference |
 |------|----------|-----------|
-| **style** | Every image shares a distinctive aesthetic (chemigram, VCRIBB, dgz_80s, attachestvo). Captions describe content, omit style. Trigger is a comma-appended suffix. | `references/style-template.py` |
+| **style** | Every image shares a distinctive aesthetic (photogram, kitsch collage, 80s airbrush, folk woodcut). Captions describe content, omit style. Trigger is a comma-appended suffix. | `references/style-template.py` |
 | **character** | Every image is the same person/creature in different clothes/settings/styles. Captions describe variables, omit identity. Trigger is the literal first word of the caption. | `references/character-template.py` |
 | **motion-first-frame** | Dataset is a folder of video clips for a motion LoRA. Caption only the first frame (extracted via cv2) as a still image. Avoid list is motion verbs + time-evolution words + anticipatory language. | `references/motion-first-frame-template.py` |
 | **filename-template** | The user already knows what each clip depicts and wants deterministic captions from a `CAPTION_MAP: dict[str, str]` keyed by filename descriptor. No Gemini call. | `references/filename-template.py` |
@@ -110,7 +110,7 @@ describe → promptable, omit → automatic/baked.
 | Pattern | Use when |
 |---------|----------|
 | `--suffix "trigger"` appended after a comma | Style mode. Captions end with `..., trigger`. The script enforces this if Gemini drifts. |
-| `--suffix "anchor word, trigger"` | Style mode where you want a real-word semantic prior. E.g. `chemigram print, 1ll6m3ns` — `chemigram print` gives the LoRA something to attach to; `1ll6m3ns` is the unique lock-in. Inference must include both. |
+| `--suffix "anchor word, trigger"` | Style mode where you want a real-word semantic prior. E.g. `photogram print, ph0tgrm` — `photogram print` gives the LoRA something to attach to; `ph0tgrm` is the unique lock-in. Inference must include both. |
 | `TRIGGER` token replacement | Character mode. Caption starts with the literal trigger word (e.g. `p3r5on wearing a sweater...`). Gemini writes `TRIGGER`; the script substitutes. |
 | `--trigger "trigger"` appended | Motion mode. Same as style suffix, but called `--trigger` since there's no anchored-word concept. |
 
@@ -126,7 +126,7 @@ Invert instead: leave the register unmarked everywhere it appears, and add a
 short marker to the plates that **lack** it, so "has the register" stays the
 trigger's default and "clean" becomes the describable exception.
 
-- decker-protocolized v3: 19 heavy / 19 mild / 4 clean plates. The four clean
+- A glitch-texture style project, v3: 19 heavy / 19 mild / 4 clean plates. The four clean
   ones got `, clean and sharp` before the trigger; nothing else changed. The
   register reached the samples for the first time in three runs.
 - Keep the marker **short, plain, and non-loaded** — two or three ordinary
@@ -151,7 +151,7 @@ image, because polychrome was never described.
   part of what the model should be able to do. Cap only when flat, limited
   palettes are the point.
 - Promptable colour generalizes well outside the training histogram — on
-  pawlowski, violet fired at 89% coverage from 0.2% of the dataset's coloured
+  one morph-video project, violet fired at 89% coverage from 0.2% of the dataset's coloured
   pixels. So a thin hue is not a reason to drop it from captions; it is the
   reason to name it.
 - Polychrome at inference then requires naming the hues ("teal and amber" →

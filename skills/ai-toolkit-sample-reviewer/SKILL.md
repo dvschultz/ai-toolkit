@@ -63,7 +63,7 @@ Sample 5-8 dataset images using the Read tool. You want to internalize:
 - **For character LoRAs**: identity features (face, build, hair), what varies across the set (clothing, pose, lighting).
 - **For combined**: both, plus how the two style descriptors in captions differ.
 
-**If the brief names reference images, the ground truth is written FROM those**, and the make-or-break texture line is copied from the brief rather than re-derived from your own read of the dataset. Your image-reading path flattens processing texture into "photorealistic"/"sharp"; a ground truth written from that read is how decker-protocolized shipped two runs against a target missing its make-or-break, with the wide pass happily reporting `texture_fidelity: strong` the whole time. **The wide pass is only ever as accurate as this file** — a wrong ground truth does not produce a weak review, it produces a confident wrong one.
+**If the brief names reference images, the ground truth is written FROM those**, and the make-or-break texture line is copied from the brief rather than re-derived from your own read of the dataset. Your image-reading path flattens processing texture into "photorealistic"/"sharp"; a ground truth written from that read is how one glitch-texture style project shipped two runs against a target missing its make-or-break, with the wide pass happily reporting `texture_fidelity: strong` the whole time. **The wide pass is only ever as accurate as this file** — a wrong ground truth does not produce a weak review, it produces a confident wrong one.
 
 Write a "ground truth" spec **to a text file** (e.g. `output/<run>/ground_truth.txt`) before looking at any samples. Two reasons: it anchors *you* so you don't drift toward whatever the latest checkpoint happens to do — small datasets are easy to overfit to in your own analysis — and it is the exact file the Gemini wide pass (Step 4) consumes via `--ground-truth`. Make it concrete: medium, palette, texture/mark-making, what varies across the set, and any artist-intent notes lifted from the YAML comments. A fidelity judgment with no ground truth is a guess, for you and for Gemini alike.
 
@@ -155,7 +155,7 @@ tie between checkpoints. Switch to a measured detail metric: Laplacian variance
 (mean *and* max) over each checkpoint's samples against the same statistic over
 the dataset. It separates checkpoints the judge calls equal, and it catches the
 specific failure the judge is blindest to — fine registers that top out well
-below the dataset (pawlowski plateaued at ~55% of dataset Laplacian energy, with
+below the dataset (one morph-video project plateaued at ~55% of dataset Laplacian energy, with
 the dataset's filament/spark register at max 108 vs the samples' 45, while the
 style judge kept reporting wins).
 
@@ -164,7 +164,7 @@ style judge kept reporting wins).
 **Gate A — on a distilled-deploy base, the verdict happens on the
 deployment endpoint, not on training samples.** Krea2 is the standing case:
 it trains on Krea-2-Raw and deploys on Krea-2-Turbo, and the Raw samples
-were wrong in *both* directions on decker-protocolized:
+were wrong in *both* directions on a glitch-texture style project:
 
 | Raw sample said | Turbo actually did |
 |---|---|
@@ -183,7 +183,7 @@ twice now.
 Gate A says *where* the verdict happens; this says *what you tune first once
 you're there*. Checkpoint ranking at an uncalibrated scale measures the scale,
 not the checkpoint. Pick ONE mid-run checkpoint, pinned-seed sweep it, then
-rank every candidate at the scale that sweep found. On pawlowski-kineform three
+rank every candidate at the scale that sweep found. On one morph-video project three
 fal batches and ~$7 ranked checkpoints at scale 1.0; step 1250 "clearly beat"
 1750 there, and the two came out roughly equal once scale (2.75) and prompt
 dialect were matched. Applies to non-distilled bases too — H3 is guidance-
@@ -193,7 +193,7 @@ distilled with no train/deploy split and still needed 2.75.
 *captions'* dialect — trigger in the position the captions put it, the clauses
 every caption carries, roughly the caption's length. An off-dialect prompt
 under-fires the LoRA and the deficit gets misattributed to the checkpoint. If
-the training sample prompts were written off-dialect (a common bug — pawlowski's
+the training sample prompts were written off-dialect (a common bug — one project's
 put the trigger first when every caption puts it last), the training samples are
 themselves a weak signal and the endpoint renders are the real evidence.
 
@@ -202,7 +202,7 @@ write a recipe.** Build a contact sheet (samples or endpoint renders vs the
 brief's reference images), hand over the path, and ask the direct question:
 "does this have the thing you care about?" Only then write deploy notes.
 
-On decker-protocolized a winner was declared and the deploy notes were
+On a glitch-texture style project a winner was declared and the deploy notes were
 written before this gate; four images pasted by the artist overturned the
 whole verdict one message later. Your rubric can confirm that a checkpoint
 matches the spec — only the artist can tell you the spec was wrong. A

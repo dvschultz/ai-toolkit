@@ -69,9 +69,9 @@ bottleneck.
 
 **Fix:** copy dataset to local SSD before captioning:
 ```bash
-mkdir -p ~/Desktop/dataset-local
-cp /your/external/drive/path/*.mp4 ~/Desktop/dataset-local/
-python scripts/caption_..._gemini.py --dataset ~/Desktop/dataset-local/
+mkdir -p ~/dataset-local
+cp /your/external/drive/path/*.mp4 ~/dataset-local/
+python scripts/caption_..._gemini.py --dataset ~/dataset-local/
 ```
 
 You can copy back the `.txt` files when done if you want them on the
@@ -270,6 +270,6 @@ I2V needs `arch: wan22_14b_i2v` AND the I2V variant of the checkpoint
 (`Wan2.2-I2V-A14B-...`). Mixing T2V arch with I2V model (or vice versa)
 produces shape errors in the conditioning path.
 
-**Fix:** verify both `arch:` and `name_or_path:` match. See
-`train_lora_wan22_14b_yvonne_morph_style_i2v.yaml` for the canonical I2V
-config.
+**Fix:** verify both `arch:` and `name_or_path:` match. A working I2V config pairs
+`arch: wan22_14b_i2v` with an I2V `name_or_path`; a T2V config pairs
+`arch: wan22_14b` with a T2V checkpoint.

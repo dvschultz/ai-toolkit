@@ -410,7 +410,7 @@ PUSH_TO_HUB_WARNING = (
 # sign (shadow moved AWAY from the params by (1-decay) per step), which makes
 # every sampled image and every saved checkpoint diverge into noise while the
 # training loss stays perfectly healthy — a silently wasted multi-hour run
-# (decker_protocolized_krea2_v1, 2026-09-14). The local fork fixes it; a future
+# (glitch_style_krea2_v1, 2026-09-14). The local fork fixes it; a future
 # upstream merge would revert it just as silently, so verify the code we are
 # about to ship whenever the run actually uses EMA. Source-level on purpose:
 # preflight must stay dependency-free (no torch on the laptop).

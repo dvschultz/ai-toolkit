@@ -51,7 +51,7 @@ Ask the user (or infer from context):
 | **Dataset path** | Folder of `.txt` caption files. Same path as the YAML's `folder_path`. |
 | **Mode** | style / character / motion / combined. Determines which avoid-list applies. |
 | **Trigger word** | Leetspeak token. Audit verifies it appears at the right position in every caption. |
-| **Anchored phrase** (style only) | Optional, e.g. `chemigram print`. Audit verifies anchor + trigger pair is at end. |
+| **Anchored phrase** (style only) | Optional, e.g. `photogram print`. Audit verifies anchor + trigger pair is at end. |
 | **Known leakage** (optional) | Words from prior runs that bled. Add to the audit's avoid-list for this run. |
 
 If mode is unclear, ask. The avoid-list differs significantly across
@@ -162,7 +162,7 @@ detect:
 - **Semantic leakage** — captions describing the style indirectly
   ("photographic-looking", "painted-feel") even without the literal
   forbidden word.
-- **Style-as-subject overlap** — for chemigram-like LoRAs where leaf
+- **Style-as-subject overlap** — for photogram-like LoRAs where leaf
   veins are style-bound but leaves are content-bound, the audit can't
   know which "vein" mentions are leaks vs. legitimate.
 - **Composition leakage** — if every caption describes "centered on

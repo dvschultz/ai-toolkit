@@ -45,7 +45,7 @@ you think — check what it snapped to rather than assuming your clip length.
 
 **Deploy-side mismatch to plan for:** the fal endpoint's minimum duration is
 **5 seconds**, and its durations are integer seconds. Training clips rarely land
-exactly there (pawlowski trained 4.46s clips and deployed at 5s). That gap is
+exactly there (one morph-video project trained 4.46s clips and deployed at 5s). That gap is
 normal and not worth contorting the dataset for, but state the training clip
 length in the deploy notes so nobody reads the difference as a bug.
 
@@ -138,7 +138,7 @@ ratio = source_chunk_length_seconds / inference_length_seconds
 | 2.0× | LoRA sees 2× sped-up motion. Works for morph / transformation / abstract motion. |
 | 4.0×+ | LoRA learns the motion as fast-forward. Output at inference will look unnaturally rushed. Avoid. |
 
-The Yvonne morph dataset trains at 2× compression (10s chunks → 5s output)
+One morph dataset trains at 2× compression (10s chunks → 5s output)
 and that works because the morph motion is abstract enough to tolerate
 compression. A realistic-action dataset (e.g., a person walking) at 2×
 would look unnaturally fast.
@@ -171,7 +171,7 @@ math does. 81 is the practical maximum on most hardware.
 
 Training for I2V is **automatic from the same dataset** — AI Toolkit's
 data loader extracts the first frame of each training clip as the
-conditioning input. You don't need a separate dataset. The yvonne dataset
+conditioning input. You don't need a separate dataset. One morph dataset
 trains both a T2V and an I2V LoRA from the same 47 chunks; the only
 config difference is `arch:` and `name_or_path:`.
 

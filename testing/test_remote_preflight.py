@@ -4,7 +4,7 @@ Run directly: python testing/test_remote_preflight.py
 
 All fixtures are synthetic tempfile trees — no network, no torch, no real
 datasets. The happy-path fixture mirrors the shape of
-config/examples/train_lora_flux2_klein_9b_balfua_style_v3.yaml.
+config/examples/train_lora_flux2_klein_9b_example_style_v3.yaml.
 """
 
 import hashlib
@@ -64,11 +64,11 @@ class PreflightTestCase(unittest.TestCase):
             f.write(b'fakectrlimage')
         return p
 
-    def balfua_like_config(self, name="fixture_run", dataset_dir=None,
+    def example_like_config(self, name="fixture_run", dataset_dir=None,
                            ctrl_img=None, **overrides):
-        """Fixture modeled on train_lora_flux2_klein_9b_balfua_style_v3.yaml."""
+        """Fixture modeled on train_lora_flux2_klein_9b_example_style_v3.yaml."""
         if dataset_dir is None:
-            dataset_dir = make_dataset(self.path("data", "balfua"))
+            dataset_dir = make_dataset(self.path("data", "example"))
         if ctrl_img is None:
             ctrl_img = self.make_ctrl_img()
         config = {
@@ -131,11 +131,11 @@ class PreflightTestCase(unittest.TestCase):
 
 
 class TestHappyPath(PreflightTestCase):
-    def test_balfua_like_config_remaps_and_writes_derived(self):
-        dataset_dir = make_dataset(self.path("data", "balfua"))
+    def test_example_like_config_remaps_and_writes_derived(self):
+        dataset_dir = make_dataset(self.path("data", "example"))
         ctrl_img = self.make_ctrl_img()
         config_path = self.write_config(
-            self.balfua_like_config(dataset_dir=dataset_dir, ctrl_img=ctrl_img))
+            self.example_like_config(dataset_dir=dataset_dir, ctrl_img=ctrl_img))
         with open(config_path, 'rb') as f:
             source_bytes_before = f.read()
 
@@ -159,7 +159,7 @@ class TestHappyPath(PreflightTestCase):
         self.assertEqual(process['training_folder'],
                          contract.remote_training_folder(run))
         self.assertEqual(process['datasets'][0]['folder_path'],
-                         f"{contract.remote_dataset_dir(run)}/balfua")
+                         f"{contract.remote_dataset_dir(run)}/example")
         edit_prompt = process['sample']['samples'][3]['prompt']
         self.assertIn(f"--ctrl_img {contract.remote_ctrl_dir(run)}/portrait.jpg",
                       edit_prompt)
@@ -169,7 +169,7 @@ class TestHappyPath(PreflightTestCase):
         locals_uploaded = dict(result.upload_set)
         self.assertIn(dataset_dir, locals_uploaded)
         self.assertEqual(locals_uploaded[dataset_dir],
-                         f"{contract.remote_dataset_dir(run)}/balfua")
+                         f"{contract.remote_dataset_dir(run)}/example")
         self.assertIn(ctrl_img, locals_uploaded)
         self.assertEqual(locals_uploaded[ctrl_img],
                          f"{contract.remote_ctrl_dir(run)}/portrait.jpg")
@@ -178,7 +178,7 @@ class TestHappyPath(PreflightTestCase):
         self.assertEqual(derived['meta']['name'], 'fixture_run')
 
     def test_manifest_written_with_cadences_and_state(self):
-        config_path = self.write_config(self.balfua_like_config())
+        config_path = self.write_config(self.example_like_config())
         result = self.run_pf(config_path)
         m = manifest.load(result.run_name, base_dir=self.base)
         self.assertEqual(m.state, contract.RunState.PREFLIGHTED.value)
@@ -193,7 +193,7 @@ class TestHappyPath(PreflightTestCase):
         self.assertGreater(m.dataset_total_bytes, 0)
 
     def test_exclusions_reported_not_uploaded_in_fingerprint(self):
-        dataset_dir = make_dataset(self.path("data", "balfua"))
+        dataset_dir = make_dataset(self.path("data", "example"))
         # AppleDouble junk + latent cache must be excluded and reported
         with open(os.path.join(dataset_dir, "._img_00.jpg"), 'wb') as f:
             f.write(b'appledouble')
@@ -204,7 +204,7 @@ class TestHappyPath(PreflightTestCase):
         with open(os.path.join(cache, "x.safetensors"), 'wb') as f:
             f.write(b'latents' * 100)
         config_path = self.write_config(
-            self.balfua_like_config(dataset_dir=dataset_dir))
+            self.example_like_config(dataset_dir=dataset_dir))
         result = self.run_pf(config_path)
         report = result.dataset_reports[0]
         self.assertEqual(report.image_count, 4)        # ._* not counted
@@ -293,7 +293,7 @@ class TestFullKeyCoverage(PreflightTestCase):
 
 class TestInvariants(PreflightTestCase):
     def test_use_ui_logger_absent_and_keep_5_enforced(self):
-        config = self.balfua_like_config(
+        config = self.example_like_config(
             logging=None,
             save={'save_every': 250, 'max_step_saves_to_keep': 5})
         result = self.run_pf(self.write_config(config))
@@ -308,7 +308,7 @@ class TestInvariants(PreflightTestCase):
     def test_keep_minus_one_enforced_to_10000(self):
         # -1 is NOT keep-all: clean_up_saves() slices files[:-n], so -1
         # deletes the oldest checkpoint at every save.
-        config = self.balfua_like_config(
+        config = self.example_like_config(
             save={'save_every': 250, 'max_step_saves_to_keep': -1})
         result = self.run_pf(self.write_config(config))
         derived = read_yaml(result.derived_config_path)
@@ -321,7 +321,7 @@ class TestInvariants(PreflightTestCase):
 
 class TestFailures(PreflightTestCase):
     def test_missing_dataset_folder_fails_naming_key(self):
-        config = self.balfua_like_config()
+        config = self.example_like_config()
         config['config']['process'][0]['datasets'][0]['folder_path'] = \
             self.path("does", "not", "exist")
         with self.assertRaises(preflight.PreflightError) as ctx:
@@ -330,7 +330,7 @@ class TestFailures(PreflightTestCase):
 
     def test_missing_inline_ctrl_img_fails(self):
         missing = self.path("nope", "portrait.jpg")
-        config = self.balfua_like_config()
+        config = self.example_like_config()
         config['config']['process'][0]['sample']['samples'][3]['prompt'] = \
             f"restyle this --ctrl_img {missing}"
         with self.assertRaises(preflight.PreflightError) as ctx:
@@ -355,7 +355,7 @@ class TestSidecarCoverage(PreflightTestCase):
         dataset_dir = make_dataset(self.path("data", "partial"),
                                    n_images=10, n_captions=8)
         config_path = self.write_config(
-            self.balfua_like_config(dataset_dir=dataset_dir))
+            self.example_like_config(dataset_dir=dataset_dir))
         with self.assertRaises(preflight.PreflightError) as ctx:
             self.run_pf(config_path)
         message = str(ctx.exception)
@@ -367,7 +367,7 @@ class TestSidecarCoverage(PreflightTestCase):
         dataset_dir = make_dataset(self.path("data", "partial"),
                                    n_images=10, n_captions=8)
         config_path = self.write_config(
-            self.balfua_like_config(dataset_dir=dataset_dir))
+            self.example_like_config(dataset_dir=dataset_dir))
         result = self.run_pf(config_path, allow_uncaptioned=True)
         self.assertTrue(any("img_08" in w and "img_09" in w
                             for w in result.warnings))
@@ -377,7 +377,7 @@ class TestSidecarCoverage(PreflightTestCase):
 
 class TestIdempotency(PreflightTestCase):
     def test_two_runs_identical_bytes_and_hash(self):
-        config_path = self.write_config(self.balfua_like_config())
+        config_path = self.write_config(self.example_like_config())
         first = self.run_pf(config_path)
         with open(first.derived_config_path, 'rb') as f:
             first_bytes = f.read()
@@ -394,7 +394,7 @@ class TestIdempotency(PreflightTestCase):
 
 class TestGenericSweep(PreflightTestCase):
     def test_unknown_key_with_local_path_fails_with_dotted_path(self):
-        config = self.balfua_like_config()
+        config = self.example_like_config()
         config['config']['process'][0]['custom_widget_path'] = \
             "/Users/nobody/secret/widget.png"
         with self.assertRaises(preflight.PreflightError) as ctx:
@@ -406,7 +406,7 @@ class TestGenericSweep(PreflightTestCase):
     def test_hf_repo_id_not_flagged(self):
         # the happy-path fixture carries name_or_path:
         # black-forest-labs/FLUX.2-klein-base-9B — it must survive the sweep
-        result = self.run_pf(self.write_config(self.balfua_like_config()))
+        result = self.run_pf(self.write_config(self.example_like_config()))
         derived = read_yaml(result.derived_config_path)
         self.assertEqual(derived['config']['process'][0]['model']['name_or_path'],
                          'black-forest-labs/FLUX.2-klein-base-9B')
@@ -414,14 +414,14 @@ class TestGenericSweep(PreflightTestCase):
     def test_looks_like_local_path_classifier(self):
         f = preflight.looks_like_local_path
         self.assertTrue(f("/Users/x/y.jpg"))
-        self.assertTrue(f("/Volumes/X902/Rhizome/balfua"))
+        self.assertTrue(f("/Volumes/EXT/dataset"))
         self.assertTrue(f("~/datasets/foo"))
         self.assertTrue(f("./relative/path"))
         self.assertTrue(f("../up/one"))
         self.assertFalse(f("black-forest-labs/FLUX.2-klein-base-9B"))
         self.assertFalse(f("org/name"))
         self.assertFalse(f("a fox, glowing forest"))
-        self.assertFalse(f(contract.remote_dataset_dir("r") + "/balfua"))
+        self.assertFalse(f(contract.remote_dataset_dir("r") + "/example"))
         self.assertFalse(f("/workspace/runs/r/output"))
         # slash-shaped relative path that DOES exist locally is flagged
         existing = make_dataset(self.path("rel", "exists"))
@@ -431,7 +431,7 @@ class TestGenericSweep(PreflightTestCase):
 
 class TestRunNameGuard(PreflightTestCase):
     def test_bad_name_fails_before_other_validation(self):
-        config = self.balfua_like_config(name="bad name; rm -rf")
+        config = self.example_like_config(name="bad name; rm -rf")
         # dataset path is ALSO broken — the name guard must fire first
         config['config']['process'][0]['datasets'][0]['folder_path'] = \
             self.path("missing")
@@ -448,7 +448,7 @@ class TestRunNameGuard(PreflightTestCase):
     def test_config_name_validated_even_with_valid_run_name_override(self):
         # config.name flows into remote paths + shell strings like the run
         # name does; a valid --run-name must NOT bypass its validation (#12)
-        config = self.balfua_like_config(name="bad name")
+        config = self.example_like_config(name="bad name")
         with self.assertRaises(preflight.PreflightError) as ctx:
             self.run_pf(self.write_config(config), run_name="good_run")
         msg = str(ctx.exception)
@@ -458,21 +458,21 @@ class TestRunNameGuard(PreflightTestCase):
 
 class TestHubPushWarning(PreflightTestCase):
     def test_push_to_hub_true_warns(self):
-        config = self.balfua_like_config(
+        config = self.example_like_config(
             save={'save_every': 250, 'push_to_hub': True})
         result = self.run_pf(self.write_config(config))
         self.assertTrue(any('push_to_hub' in w for w in result.warnings))
 
     def test_push_to_hub_false_no_warning(self):
-        result = self.run_pf(self.write_config(self.balfua_like_config()))
+        result = self.run_pf(self.write_config(self.example_like_config()))
         self.assertFalse(any('push_to_hub' in w for w in result.warnings))
 
 
 class TestConfigResolution(PreflightTestCase):
     def test_config_dir_resolution_and_env_substitution(self):
-        dataset_dir = make_dataset(self.path("data", "balfua"))
+        dataset_dir = make_dataset(self.path("data", "example"))
         os.makedirs(self.path("config"), exist_ok=True)
-        config = self.balfua_like_config(dataset_dir=dataset_dir)
+        config = self.example_like_config(dataset_dir=dataset_dir)
         config['config']['process'][0]['datasets'][0]['folder_path'] = \
             "${AITK_TEST_DATASET_DIR}"
         write_yaml(self.path("config", "resolved_fixture.yaml"), config)
@@ -485,10 +485,10 @@ class TestConfigResolution(PreflightTestCase):
         derived = read_yaml(result.derived_config_path)
         self.assertEqual(
             derived['config']['process'][0]['datasets'][0]['folder_path'],
-            f"{contract.remote_dataset_dir(result.run_name)}/balfua")
+            f"{contract.remote_dataset_dir(result.run_name)}/example")
 
     def test_unset_env_var_fails_cleanly(self):
-        config = self.balfua_like_config()
+        config = self.example_like_config()
         config['config']['process'][0]['datasets'][0]['folder_path'] = \
             "${AITK_TEST_UNSET_VAR_XYZ}"
         with self.assertRaises(preflight.PreflightError) as ctx:

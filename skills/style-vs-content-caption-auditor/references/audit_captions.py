@@ -15,23 +15,23 @@ No external dependencies — pure stdlib.
 Usage:
 
     python audit_captions.py --dataset /path/to/captions --mode style \\
-        --trigger 1ll6m3ns
+        --trigger ph0tgrm
 
     # with anchored trigger (real word + leetspeak)
     python audit_captions.py --dataset /path --mode style \\
-        --trigger 1ll6m3ns --anchor "chemigram print"
+        --trigger ph0tgrm --anchor "photogram print"
 
     # add dataset-specific leaked words (from prior runs that bled)
     python audit_captions.py --dataset /path --mode style \\
-        --trigger 1ll6m3ns --extra-avoid "vein,branching,translucent"
+        --trigger ph0tgrm --extra-avoid "vein,branching,translucent"
 
     # show top N problematic files (default 10)
     python audit_captions.py --dataset /path --mode style \\
-        --trigger 1ll6m3ns --top 20
+        --trigger ph0tgrm --top 20
 
     # structural-only check (skip leak vocabulary scan — fast pre-flight)
     python audit_captions.py --dataset /path --mode style \\
-        --trigger 1ll6m3ns --structural-only
+        --trigger ph0tgrm --structural-only
 
 Modes:
     style     — flag medium/palette/mood/vibe/quality/hedging
@@ -412,7 +412,7 @@ def main():
     parser.add_argument("--trigger", required=True,
                         help="Trigger word (leetspeak token)")
     parser.add_argument("--anchor", default=None,
-                        help="Anchored phrase (style only), e.g. 'chemigram print'")
+                        help="Anchored phrase (style only), e.g. 'photogram print'")
     parser.add_argument("--extra-avoid", default="",
                         help="Comma-separated extra words to flag (dataset-specific leaks from prior runs)")
     parser.add_argument("--top", type=int, default=10,

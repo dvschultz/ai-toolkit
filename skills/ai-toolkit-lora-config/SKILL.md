@@ -129,14 +129,14 @@ Sample prompts during training evaluation should be **minimal**. Do NOT include 
 
 **Wrong:**
 ```
-zh3ng a red bicycle rendered as an oil pastel crayon illustration on white paper with heavy waxy pigment...
+p4st3l a red bicycle rendered as an oil pastel crayon illustration on white paper with heavy waxy pigment...
 ```
 
 The base model will render oil pastel from this prompt whether or not the LoRA is working, making it impossible to tell if training is actually taking hold.
 
 **Right:**
 ```
-zh3ng a red bicycle
+p4st3l a red bicycle
 ```
 
 Plus a control prompt without the trigger to see what the base model does on its own:
@@ -213,7 +213,7 @@ wrong:
 | ~60-90% | Standard recipe, but keep EMA decay modest and review late saves carefully |
 | **under ~60%** | EMA **off**; rank up one notch (32 → 48) if the register has multiple distinct modes; **drop sub-native resolution buckets** (a 768 bucket smears streak/block/grain structure into ordinary blur); have the captioner **inverse-mark the plates that score 0** (caption the exception — `, clean and sharp` — leaving the register unmarked and therefore the trigger's default); optionally train only the heavy subset |
 
-The decker-protocolized v1/v2 configs were textbook-correct (rank 32, EMA
+A glitch-texture style project's v1/v2 configs were textbook-correct (rank 32, EMA
 0.99, buckets [768, 1024]) and lost the register completely at 45% coverage;
 v3 changed exactly these four levers and recovered it.
 
@@ -233,7 +233,7 @@ After the questions are answered:
 
 1. **Write the YAML config to disk** at `config/examples/<descriptive-name>.yaml` using the Write tool, AND show it as a code block in the response. Both. The chat-only code block disappears when the conversation ends; the file persists. Always state the saved path explicitly so the user can run `python run.py config/examples/<name>.yaml` immediately. If you also produce a captioning script (which you should, see step 3), write that to disk too — keep config and script symmetric in where they live, since users assume "if one is on disk, both are."
 2. **Explain the non-obvious decisions** — why this model, why this rank, why DOP is on/off, why this step count. Two-three sentences per decision max.
-3. **Write the captioning script to disk** at `scripts/caption_<name>_dataset_gemini.py`, modeled after the closest existing script in `scripts/` (chemigram for content/style inversion, character_dataset for standard character, style_dataset for standard style). Include the project-specific avoid-word list and the inverted-rule system prompt directly in the script — don't make the user assemble it from references.
+3. **Write the captioning script to disk** at `scripts/caption_<name>_dataset_gemini.py`, modeled after the closest existing script or template (`skills/ai-toolkit-gemini-captioner/references/*-template.py`; use the style template with inverted rules for content/style inversion). Include the project-specific avoid-word list and the inverted-rule system prompt directly in the script — don't make the user assemble it from references.
 4. **Give the sample prompts** that go in the YAML — minimal content-only, control prompts, generalization tests. (Already in the YAML; just summarize what each prompt tests.)
 5. **Flag 2-3 things to watch during training.** The most common failure modes for this specific config.
 

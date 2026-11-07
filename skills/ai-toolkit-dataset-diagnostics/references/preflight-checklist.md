@@ -121,7 +121,7 @@ If this is a recaption (you've trained before and weren't happy):
 
 ```bash
 # Style LoRA — what shouldn't appear in captions?
-grep -iE 'iridescent|sepia|chemigram|<your-style-words>' \
+grep -iE 'iridescent|sepia|photogram|<your-style-words>' \
   "$DATASET"/*.txt | head
 
 # Character LoRA

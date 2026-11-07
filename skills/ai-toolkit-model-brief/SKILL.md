@@ -112,7 +112,7 @@ questions. Run the ruling past this table before writing it down:
 
 When a ruling is high-risk, say so in one sentence, give the achievable
 alternative, and let the artist choose with that information. Recording
-"bake the sigils stochastically" without this check cost decker-protocolized
+"bake the sigils stochastically" without this check cost a glitch-texture style project
 an entire run: the ruling was legitimate as taste and impossible on the base
 that had already been chosen.
 
@@ -174,7 +174,7 @@ the style more unconditional, which is the opposite of the goal.
 
 Record the ruling in the brief (Embedded vs promptable → "Trigger behaviour"),
 and add the check to the review plan: run the trigger alone and a no-trigger
-control before writing deploy notes. Pawlowski-kineform discovered this at
+control before writing deploy notes. One morph-video project discovered this at
 review, after both runs, when it was a recaption-plus-rerun away.
 
 ## Step 5 — Write the brief

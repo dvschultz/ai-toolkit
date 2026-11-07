@@ -38,7 +38,7 @@ processing is therefore invisible to you: lo-fi/GAN smear, datamosh,
 scanline streaking, halftone density, grain structure, print artifacts,
 chroma noise, compression blocks.
 
-This is not hypothetical. On decker-protocolized the ground truth was
+This is not hypothetical. On a glitch-texture style project the ground truth was
 written as "photographic, long-exposure with flares" from exactly this kind
 of read. Two complete trainings (~$17 and several hours) optimized a target
 that was missing the make-or-break, a reference-calibrated judge later
@@ -176,7 +176,7 @@ as trivia:
 | ~60-90% | Majority register | Binds, but keep EMA modest and check late saves |
 | **under ~60%** | **Minority register** | **Will NOT bind by omission.** EMA off, higher rank, native-resolution-only buckets, and either inverse-mark the clean plates in captions or train the heavy subset |
 
-On decker-protocolized the split was 19 heavy / 19 mild / 4 clean — 45%.
+On a glitch-texture style project the split was 19 heavy / 19 mild / 4 clean — 45%.
 That number, available for well under a dollar before any GPU spend,
 predicted both failed runs exactly: EMA at 0.99 averaged a minority
 register away, and a 768 bucket smeared what was left. The survey is the

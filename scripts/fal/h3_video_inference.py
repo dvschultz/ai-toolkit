@@ -29,9 +29,9 @@ for confirmation unless --yes is passed.
 Usage:
     export FAL_KEY=...
     python3 scripts/fal/h3_video_inference.py \
-        --lora s1250:output/pawlowski_kineform_h3_v2/pawlowski_kineform_h3_v2_000001250.safetensors \
-        --lora s1750:output/pawlowski_kineform_h3_v2/pawlowski_kineform_h3_v2_000001750.safetensors \
-        --prompt "k1n3f0rm a single crimson form unfurling" \
+        --lora s1250:output/morph_h3_v2/morph_h3_v2_000001250.safetensors \
+        --lora s1750:output/morph_h3_v2/morph_h3_v2_000001750.safetensors \
+        --prompt "m0rphf0rm a single crimson form unfurling" \
         --out-dir output/fal_h3_compare
 """
 

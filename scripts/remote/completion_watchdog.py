@@ -10,7 +10,7 @@ API surface" -- NEITHER fires and the run has no automatic cap at all.
 
 A naive laptop-side watchdog that only terminates at a deadline is a poor
 substitute: it cannot tell that a run FINISHED, so the pod idles at full GPU
-rate until the deadline. That cost $15.61 on pawlowski_kineform_h3_v2
+rate until the deadline. That cost $15.61 on morph_h3_v2
 (training done ~13.6h in, watchdog fired at 17h).
 
 This watchdog polls for the run reaching a terminal state and then tears

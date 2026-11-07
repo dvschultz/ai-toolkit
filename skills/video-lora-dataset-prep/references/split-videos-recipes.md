@@ -58,7 +58,7 @@ python scripts/split_videos_to_chunks.py \
 - Each chunk = 10 seconds exactly (partials dropped)
 
 When to use: you want 2× temporal compression at training time (10s →
-`num_frames: 81` = 5s output). This is the yvonne morph pattern.
+`num_frames: 81` = 5s output). This is the morph-dataset pattern.
 Tolerated by abstract / morph / transformation motion. Don't use for
 realistic motion.
 

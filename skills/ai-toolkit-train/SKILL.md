@@ -269,7 +269,7 @@ where it will actually run. Order matters and is cheap to get wrong:
 1. **Match the endpoint to the base** — five image bases plus MiniMax-H3 video
    are registered; a mismatch loads the LoRA wrong or silently no-ops.
 2. **Calibrate scale first**, on one checkpoint, pinned seeds. Ranking
-   checkpoints at an uncalibrated scale measures the scale (pawlowski: three
+   checkpoints at an uncalibrated scale measures the scale (one morph-video project: three
    batches and ~$7 on a ranking that dissolved at the corrected scale).
 3. **Then rank** the finalists at that scale, in the captions' dialect.
 4. **Then Gate B** — the artist sees the renders beside their references.

@@ -25,7 +25,7 @@ class TestManifestRoundTrip(unittest.TestCase):
 
     def _full_manifest(self):
         return manifest.RunManifest(
-            run_name="balfua_v3",
+            run_name="example_v3",
             state=contract.RunState.RUNNING.value,
             ssh_host="1.2.3.4",
             ssh_port=10022,
@@ -41,9 +41,9 @@ class TestManifestRoundTrip(unittest.TestCase):
             launched_at=1600.0,
             max_runtime_deadline=87400.0,
             max_grace_seconds=1800,
-            tmux_session="aitk-train-balfua_v3",
-            timer_session="aitk-timer-balfua_v3",
-            job_name="balfua_v3",
+            tmux_session="aitk-train-example_v3",
+            timer_session="aitk-timer-example_v3",
+            job_name="example_v3",
             config_hash="ff" * 32,
             overlay_git_sha="cafe1234",
             overlay_dirty_hash="00" * 8,
@@ -63,7 +63,7 @@ class TestManifestRoundTrip(unittest.TestCase):
     def test_round_trip_all_fields(self):
         m = self._full_manifest()
         manifest.save(m, base_dir=self.base)
-        loaded = manifest.load("balfua_v3", base_dir=self.base)
+        loaded = manifest.load("example_v3", base_dir=self.base)
         self.assertEqual(m.to_dict(), loaded.to_dict())
 
     def test_unknown_fields_survive(self):
@@ -74,11 +74,11 @@ class TestManifestRoundTrip(unittest.TestCase):
         data["future_feature_flag"] = {"nested": True}
         with open(path, "w") as f:
             json.dump(data, f)
-        loaded = manifest.load("balfua_v3", base_dir=self.base)
+        loaded = manifest.load("example_v3", base_dir=self.base)
         self.assertEqual(loaded.extra["future_feature_flag"], {"nested": True})
         # and it survives a re-save
         manifest.save(loaded, base_dir=self.base)
-        reloaded = manifest.load("balfua_v3", base_dir=self.base)
+        reloaded = manifest.load("example_v3", base_dir=self.base)
         self.assertEqual(reloaded.extra["future_feature_flag"], {"nested": True})
 
     def test_missing_manifest_error_names_run_and_path(self):
@@ -94,10 +94,10 @@ class TestManifestRoundTrip(unittest.TestCase):
         with mock.patch("os.replace", side_effect=OSError("disk full")):
             with self.assertRaises(OSError):
                 manifest.save(m, base_dir=self.base)
-        loaded = manifest.load("balfua_v3", base_dir=self.base)
+        loaded = manifest.load("example_v3", base_dir=self.base)
         self.assertEqual(loaded.state, contract.RunState.RUNNING.value)
         # no stray temp files left behind
-        leftovers = [f for f in os.listdir(os.path.dirname(manifest.manifest_path("balfua_v3", self.base)))
+        leftovers = [f for f in os.listdir(os.path.dirname(manifest.manifest_path("example_v3", self.base)))
                      if f.endswith(".tmp")]
         self.assertEqual(leftovers, [])
 
@@ -121,16 +121,16 @@ class TestContractGrammars(unittest.TestCase):
         self.assertIsNone(contract.parse_sample_filename("1768412345678_000000250_0.jpg"))  # single underscore
 
     def test_checkpoint_filename_parses_step(self):
-        self.assertEqual(contract.parse_checkpoint_filename("balfua_v3_000001500.safetensors", "balfua_v3"), 1500)
-        self.assertIsNone(contract.parse_checkpoint_filename("other_000001500.safetensors", "balfua_v3"))
-        self.assertIsNone(contract.parse_checkpoint_filename("balfua_v3.safetensors", "balfua_v3"))
+        self.assertEqual(contract.parse_checkpoint_filename("example_v3_000001500.safetensors", "example_v3"), 1500)
+        self.assertIsNone(contract.parse_checkpoint_filename("other_000001500.safetensors", "example_v3"))
+        self.assertIsNone(contract.parse_checkpoint_filename("example_v3.safetensors", "example_v3"))
 
     def test_final_checkpoint_recognized(self):
-        self.assertTrue(contract.is_final_checkpoint("balfua_v3.safetensors", "balfua_v3"))
-        self.assertFalse(contract.is_final_checkpoint("balfua_v3_000001500.safetensors", "balfua_v3"))
+        self.assertTrue(contract.is_final_checkpoint("example_v3.safetensors", "example_v3"))
+        self.assertFalse(contract.is_final_checkpoint("example_v3_000001500.safetensors", "example_v3"))
 
     def test_run_name_validation(self):
-        self.assertEqual(contract.validate_run_name("balfua_v3"), "balfua_v3")
+        self.assertEqual(contract.validate_run_name("example_v3"), "example_v3")
         for bad in ["bad name; rm -rf", "x" * 70, "", "no/slash", "dollar$"]:
             with self.assertRaises(ValueError):
                 contract.validate_run_name(bad)
@@ -146,7 +146,7 @@ class TestContractGrammars(unittest.TestCase):
 
 
 class TestContractLogMatchers(unittest.TestCase):
-    TQDM = "flux2_dev_sulk1an_style_v6:  22%|##2       | 865/4000 [3:21:26<12:10:03, 13.97s/it]"
+    TQDM = "flux2_dev_example_style_v6:  22%|##2       | 865/4000 [3:21:26<12:10:03, 13.97s/it]"
     OOM = "# OOM during training step, skipping batch 1/3 #"
     TB = 'Traceback (most recent call last):\n  File "run.py", line 90, in <module>\n    raise ValueError("bad config")'
     WARM = "Fetching 23 files: 12%| | 3/23 [00:40<04:21, 13.0s/it]\nLoading checkpoint shards"

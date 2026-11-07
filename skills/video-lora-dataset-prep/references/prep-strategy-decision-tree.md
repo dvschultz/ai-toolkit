@@ -68,14 +68,14 @@ acceptable:
 - **Realistic motion** (a person walking, water flowing, leaves blowing):
   cap temporal compression at 1.0× — chunks should match inference length
   exactly. 2× compression makes realistic motion look unnaturally fast.
-- **Abstract / morph motion** (the yvonne dataset, transformations):
+- **Abstract / morph motion** (slow morphs, transformations):
   tolerates 2× compression well. 10s chunks → 5s output is fine.
 - **Cyclic motion** (loops, oscillations): compression doesn't matter
   much — the model learns a phase pattern. Either ratio is OK.
 
 ## Worked examples
 
-### Example A — Yvonne morph dataset
+### Example A — Abstract morph dataset
 
 Source: 13 long videos (60–120s each), each one is a slow morph
 transformation.
@@ -90,7 +90,7 @@ which works for morph motion.
 
 Result: 47 chunks across 13 sources.
 
-### Example B — Rock formation morph (gr4r0cks)
+### Example B — Rock formation morph (r0ckf0rm)
 
 Source: ~20 short clips, each ~5s of rock-formation morph motion.
 

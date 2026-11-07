@@ -22,7 +22,7 @@ Use this skill when:
 
 Collect these inputs before deciding:
 - Model/training context: image vs video, architecture if known.
-- Trigger token/word (for example `grarocks`).
+- Trigger token/word (for example `r0ckf0rm`).
 - Target concept summary in one sentence.
 - 5 to 20 representative captions (or a summary of their recurring nouns).
 
@@ -82,7 +82,7 @@ train:
 ## Example
 
 Input concept: cinematic photos of young girls in a dance competition  
-Trigger: `grarocks`
+Trigger: `r0ckf0rm`
 
 Expected recommendation style:
 - Recommended class: `young dancer`

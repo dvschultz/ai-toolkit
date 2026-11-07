@@ -47,8 +47,8 @@ The style descriptor must be identical across all captions in the dataset. Pick 
 
 Example (dataset of oil pastel illustrations):
 ```
-shnzng a yellow apple with a blue leaf, on a white background, oil pastel illustration
-shnzng a teapot with floral patterns, on a white background, oil pastel illustration
+p4st3l a yellow apple with a blue leaf, on a white background, oil pastel illustration
+p4st3l a teapot with floral patterns, on a white background, oil pastel illustration
 ```
 
 Note: both captions describe content and end with the same style phrase. The LoRA will learn that "oil pastel illustration" means "render in this visual style."

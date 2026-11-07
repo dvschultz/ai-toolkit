@@ -30,7 +30,7 @@ Captions describe content; trigger encodes the aesthetic.
 
 ### `medium`
 Words for the photographic/illustrative/sculptural medium of the image.
-If your dataset is chemigrams that look photographic, you DON'T want
+If your dataset is photograms that look photographic, you DON'T want
 the LoRA to associate "photograph" with the style.
 
 ```
@@ -229,9 +229,9 @@ the trigger and shouldn't be flagged).
 Use `--extra-avoid` to add dataset-specific words from prior runs
 that bled. Examples from past projects:
 
-- chemigram: `vein,branching,translucent,leaf-skeleton,vascular`
-- VCRIBB: `glitter,rhinestone,beaded,sequined,pearl,dollhouse,kitsch`
-- gr4r0cks: `coral,pink-coral,warm-coral,cream-warm`
+- photogram: `vein,branching,translucent,leaf-skeleton,vascular`
+- kitsch collage: `glitter,rhinestone,beaded,sequined,pearl,dollhouse,kitsch`
+- r0ckf0rm: `coral,pink-coral,warm-coral,cream-warm`
 
 The script reports these as a `dataset_specific_leaks` category in the
 output. If `--extra-avoid` words show up in many captions, your
@@ -242,7 +242,7 @@ captioner's avoid-list was incomplete — fix it before recaptioning.
 - **Semantic leakage** — "photographic-looking" without literal
   "photograph". A human spot-check of 5-10 random captions catches
   these.
-- **Style-as-subject overlap** — for chemigram-like LoRAs where leaf
+- **Style-as-subject overlap** — for photogram-like LoRAs where leaf
   veins are style-bound but leaves are content-bound, "vein" mentions
   could be either. The audit can't disambiguate; you have to read the
   captions.

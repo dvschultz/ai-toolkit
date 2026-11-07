@@ -76,7 +76,7 @@ global `--output-base` (or set `$AITK_OUTPUT_BASE`) pointing at an external
 drive — it must come **before** the subcommand:
 
 ```bash
-python scripts/remote/cli.py --output-base "/Volumes/Lexar/aitk-output" \
+python scripts/remote/cli.py --output-base "/Volumes/EXT/aitk-output" \
     up config/examples/<config>.yaml --gpu H200 --gpu-fallback "H100 NVL"
 ```
 

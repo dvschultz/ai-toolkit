@@ -29,18 +29,18 @@ Usage:
 
   # A/B three LoRAs against two prompts × three seeds (18 images)
   python scripts/fal/inference.py \\
-      --run amon_v4_ab \\
-      --lora v3_step_4250:output/amon_silex_klein_9b_v3/amon_silex_klein_9b_v3_000004250.safetensors \\
-      --lora v4_step_1000:output/amon_silex_klein_9b_v4/amon_silex_klein_9b_v4_000001000.safetensors \\
-      --lora v4_step_1250:output/amon_silex_klein_9b_v4/amon_silex_klein_9b_v4_000001250.safetensors \\
-      --prompt "suburban houses below a smoking industrial complex under a blue sky, silex relief, 4m0nsx" \\
-      --prompt "a herd of horses standing in a grassy field under a blue sky, silex relief, 4m0nsx" \\
+      --run mystyle_v4_ab \\
+      --lora v3_step_4250:output/mystyle_klein_9b_v3/mystyle_klein_9b_v3_000004250.safetensors \\
+      --lora v4_step_1000:output/mystyle_klein_9b_v4/mystyle_klein_9b_v4_000001000.safetensors \\
+      --lora v4_step_1250:output/mystyle_klein_9b_v4/mystyle_klein_9b_v4_000001250.safetensors \\
+      --prompt "suburban houses below a smoking industrial complex under a blue sky, linocut relief, myst1le" \\
+      --prompt "a herd of horses standing in a grassy field under a blue sky, linocut relief, myst1le" \\
       --seed 42 --seed 123 --seed 7
 
   # Single LoRA, one prompt, three random seeds
   python scripts/fal/inference.py \\
       --lora my_lora:path/to/lora.safetensors \\
-      --prompt "a chrome key glyph, silex relief, 4m0nsx" \\
+      --prompt "a chrome key glyph, linocut relief, myst1le" \\
       --num-seeds 3
 
 Required env: FAL_KEY in .env or environment. The script auto-loads .env.

@@ -206,4 +206,4 @@ This catches caption-strategy failures (the most common reason a long run fails)
 
 ### Existing repo evidence
 
-The chemigram style LoRA in this repo (`config/examples/train_lora_flux2_klein_9b_chemigram_style.yaml`) is on Klein 9B base, not Turbo, despite being a style LoRA. The dataset features vein patterning, spray/atomized chemistry, halftone, and pooling — all high-frequency detail. The choice is implicit — texture-heavy style → tier-1 base model — and the table above makes it explicit.
+A photogram style LoRA trained with this repo was on Klein 9B base, not Turbo, despite being a style LoRA. The dataset features vein patterning, spray/atomized developer marks, halftone, and pooling — all high-frequency detail. The choice is implicit — texture-heavy style → tier-1 base model — and the table above makes it explicit.

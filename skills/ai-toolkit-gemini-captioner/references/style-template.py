@@ -182,7 +182,7 @@ def main():
     parser.add_argument("--dataset", default="<DEFAULT_DATASET_PATH>",
                         help="Path to image folder")
     # CUSTOMIZE: bake in the trigger. Use real-word + leetspeak pairing if
-    # the style benefits from a semantic prior (e.g. "chemigram print, 1ll6m3ns")
+    # the style benefits from a semantic prior (e.g. "photogram print, ph0tgrm")
     parser.add_argument("--suffix", default="<TRIGGER>",
                         help="Literal trigger appended to every caption. "
                              "Must match trigger_word in your YAML config.")

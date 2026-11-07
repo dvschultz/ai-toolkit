@@ -64,7 +64,7 @@ class DispatchRunner:
 
 EP = Endpoint(host="1.2.3.4", port=10022)
 NOW = 1768500000.0
-RUN = "balfua_v3"
+RUN = "example_v3"
 JOB_DIR = contract.remote_job_dir(RUN)
 
 # Log-tail fixtures (records separated the way the teed log really is: tqdm
@@ -77,8 +77,8 @@ TRACEBACK_TAIL = (
     "ValueError: boom\n"
 )
 PROGRESS_TAIL = (
-    "balfua_v3:   2%|2         | 86/4000 [21:26<12:10:03, 13.97s/it, lr: 1.0e-04 loss: 4.012e-01]\r"
-    "balfua_v3:   2%|2         | 87/4000 [21:40<12:09:00, 13.95s/it, lr: 1.0e-04 loss: 3.998e-01]"
+    "example_v3:   2%|2         | 86/4000 [21:26<12:10:03, 13.97s/it, lr: 1.0e-04 loss: 4.012e-01]\r"
+    "example_v3:   2%|2         | 87/4000 [21:40<12:09:00, 13.95s/it, lr: 1.0e-04 loss: 3.998e-01]"
 )
 WARMING_TAIL = (
     "Fetching 23 files\n"
@@ -730,11 +730,11 @@ class TestStatePrecedence(MonitorBase):
 
 
 OOM_TAIL = (
-    "balfua_v3:  10%|#         | 400/4000 [1:00:00<9:00:00, 9.00s/it]\r"
+    "example_v3:  10%|#         | 400/4000 [1:00:00<9:00:00, 9.00s/it]\r"
     "# OOM during training step, skipping batch\n"
-    "balfua_v3:  11%|#1        | 440/4000 [1:06:00<8:54:00, 9.00s/it]\r"
+    "example_v3:  11%|#1        | 440/4000 [1:06:00<8:54:00, 9.00s/it]\r"
     "# OOM during training step, skipping batch\n"
-    "balfua_v3:  12%|#2        | 480/4000 [1:12:00<8:48:00, 9.00s/it]\r"
+    "example_v3:  12%|#2        | 480/4000 [1:12:00<8:48:00, 9.00s/it]\r"
     "# OOM during training step, skipping batch\n"
 )
 
